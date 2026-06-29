@@ -1060,7 +1060,8 @@ git commit -m "feat: add yfinance loader with pure normalize helper (data.py)"
 - Consumes: `target.add_labels`, `indicators.mma`, `sweep.run_sweep`, `data.load_prices`.
 - Produces:
   - `build_summary(prices: pd.DataFrame, *, windows, tols, horizons, min_events=5) -> tuple[pd.DataFrame, pd.DataFrame]` — pure orchestration over an already-loaded price df; returns `(analysis_df, summary_df)` (network-free; unit-tested).
-  - `write_outputs(analysis, summary, outdir="output") -> tuple[Path, Path]` — creates `outdir` and writes `analysis_mma.xlsx` (with date index) + `summary_mma.xlsx` (`index=False`) via `to_excel`; network-free, unit-tested.
+  - `summary_dictionary() -> pd.DataFrame` — legenda (1 linha por coluna do summary: `coluna, grupo, significado, como_ler`).
+  - `write_outputs(analysis, summary, outdir="output") -> tuple[Path, Path]` — creates `outdir` and writes `analysis_mma.xlsx` (date index) + `summary_mma.xlsx` (**2 abas:** `summary` + `dicionário`) via `pd.ExcelWriter`; network-free, unit-tested.
   - `main(ticker="^BVSP", start="2010-01-01", end="2024-12-31") -> None` — loads prices, calls `build_summary`, then `write_outputs`.
 
 - [ ] **Step 1: Write the failing test**

@@ -80,7 +80,31 @@ def test_write_outputs_writes_readable_xlsx(synthetic_prices, tmp_path):
     # Fase 2: ambos os arquivos .xlsx existem com os nomes corretos.
     assert analysis_path.name == "analysis_mma.xlsx" and analysis_path.exists()
     assert summary_path.name == "summary_mma.xlsx" and summary_path.exists()
-    # Fase 3: o summary relido bate em nº de linhas e tem a coluna family.
+    # Fase 3: o summary relido (1ª aba) bate em nº de linhas e tem a coluna family.
     back = pd.read_excel(summary_path)
     # Saída: roundtrip íntegro.
     assert len(back) == len(summary) and "family" in back.columns
+
+
+# Correção: o summary.xlsx traz uma 2ª aba 'dicionário' com a legenda das colunas.
+def test_summary_xlsx_has_dictionary_sheet(synthetic_prices, tmp_path):
+    """
+    Por quê: o usuário pediu a legenda ao lado dos dados; o summary.xlsx deve ter
+    duas abas — 'summary' (dados) e 'dicionário' (uma linha por coluna do summary).
+
+    Lógica: Entrada (build_summary) → Fase 1 write_outputs → Fase 2 abas → Fase 3
+    o dicionário cobre todas as colunas do summary → Saída.
+    """
+    # Entrada: gera as saídas sintéticas.
+    analysis, summary = build_summary(
+        synthetic_prices, windows=[5], tols=[0.0], horizons=[10], min_events=1
+    )
+    # Fase 1: escreve em tmp.
+    _, summary_path = write_outputs(analysis, summary, outdir=tmp_path)
+    # Fase 2: o arquivo tem as duas abas esperadas.
+    sheets = pd.ExcelFile(summary_path).sheet_names
+    assert "summary" in sheets and "dicionário" in sheets
+    # Fase 3: o dicionário tem exatamente uma linha por coluna do summary.
+    dic = pd.read_excel(summary_path, sheet_name="dicionário")
+    # Saída: a coluna 'coluna' do dicionário cobre todas as colunas do summary.
+    assert set(dic["coluna"]) == set(summary.columns)

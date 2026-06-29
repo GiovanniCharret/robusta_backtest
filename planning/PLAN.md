@@ -19,7 +19,7 @@
 - **Sweep** de parâmetros, 1 preditor por modelo agora; `fit_logit` aceita N preditores (stepwise futuro).
 - Alvo = **retorno do Close** `Close[t+h]/Close[t]-1` (não da SMA); coluna contínua `ret_{h}d` fica ao lado do `y_{h}d` para revisão.
 - **Um df-fundação** (OHLCV do yfinance) ao qual todos os cálculos **adicionam colunas** (igual ao legado), revisável linha a linha.
-- **Duas saídas:** `output/analysis_mma.xlsx` (1 linha/dia, df-fundação enriquecido) e `output/summary_mma.xlsx` (1 linha/modelo). Formato **.xlsx** (engine openpyxl).
+- **Duas saídas:** `output/analysis_mma.xlsx` (1 linha/dia, df-fundação enriquecido) e `output/summary_mma.xlsx` (1 linha/modelo; **2 abas: `summary` + `dicionário`** com a legenda das colunas). Formato **.xlsx** (engine openpyxl).
 - Stack: `statsmodels`, `pandas`, `yfinance`, `pytest`, ambiente `uv`. Indicador como **plug-in**.
 
 ## Fase 0 — Planejamento
