@@ -6,14 +6,14 @@
 
 **Architecture:** A single **foundation df** is seeded from `yfinance` OHLCV. Every step **adds columns** to it (legacy pattern): a fixed `target.py` adds the date-shifted labels (`ret_{h}d` continuous + `y_{h}d` binary); a swappable `indicators/<x>.py` plug-in adds the indicator value, the "above band" state and the breakout dummy; `modeling.py` fits **two families** per model — logistic on `y_{h}d` and OLS on `ret_{h}d` — via `statsmodels`; `sweep.py` accumulates all columns and returns `(analysis_df, summary_df)`; `run_mma.py` writes both to CSV.
 
-**Tech Stack:** Python 3.11+, `uv` (env), `pandas`, `numpy`, `statsmodels`, `yfinance`, `pytest`.
+**Tech Stack:** Python 3.11+, `uv` (env), `pandas`, `numpy`, `statsmodels`, `yfinance`, `openpyxl` (escrita .xlsx), `pytest`.
 
 ## Global Constraints
 
 - **Documentation lives in `planning/`.** Decisions and progress in `planning/PLAN.md`. **Never edit `planning/PROJECT_BUILDING.md`.**
 - **Code convention (mandatory, from CLAUDE.md):** every function has a docstring in this order — (1) *why the function exists*; (2) the input→output logic in **numbered phases** (Entrada → Fase 1 → … → Saída). **Every line of code is commented**, including obvious ones.
 - **One foundation df.** All calculations build on the df extracted from `yfinance` and **add columns to it** (so it can be reviewed row-by-row, aligned by date). Nothing returns a bare detached Series that the foundation df doesn't keep.
-- **Two outputs:** `output/analysis_mma.csv` (the enriched foundation df — **1 row per day**, with the date index) and `output/summary_mma.csv` (**1 row per model**).
+- **Two outputs (`.xlsx`):** `output/analysis_mma.xlsx` (the enriched foundation df — **1 row per day**, with the date index) and `output/summary_mma.xlsx` (**1 row per model**). Written via `pandas.to_excel` (engine `openpyxl`).
 - **Target columns:** for each horizon `h`, add `ret_{h}d = Close[t+h]/Close[t]-1` (continuous, for review) and `y_{h}d = 1 if ret_{h}d > 0 else 0`. Last `h` rows are `NA` and dropped before fitting — no look-ahead in the predictor.
 - **Indicator columns (mma):** `mma_w{window}` (value), `mma_w{window}_t{tol}_above` (state), `mma_w{window}_t{tol}_break` (the dummy: `1` only on the crossing day).
 - **Two model families per model:** logistic (`statsmodels.Logit`) on `y_{h}d` **and** OLS (`statsmodels.OLS`) on `ret_{h}d`. Both return the **same dict schema** with a `family` key and a unified `r2` (McFadden pseudo for logit, classic R² for OLS); `accuracy` is logit-only (NaN for OLS). Both accept N predictors (future stepwise) though the sweep uses one. Variable-selection methods (stepwise/Lasso/SFS) are future (need multiple predictors).
@@ -40,7 +40,7 @@ rebuild_robusta_backtests/
       mma.py              # add_columns: mma value, above, break  [PLUG-IN]
     modeling.py           # fit_logit  (1..N predictors)
     sweep.py              # run_sweep -> (analysis_df, summary_df)
-    run_mma.py            # build_summary + main (writes analysis_mma.csv + summary_mma.csv)
+    run_mma.py            # build_summary + write_outputs + main (writes .xlsx)
   tests/
     conftest.py           # shared synthetic-price fixtures
     test_smoke.py
@@ -50,7 +50,7 @@ rebuild_robusta_backtests/
     test_sweep.py
     test_data.py
     test_run_mma.py
-  output/                 # CSVs (gitignored)
+  output/                 # .xlsx (gitignored)
 ```
 
 ---
@@ -1050,7 +1050,7 @@ git commit -m "feat: add yfinance loader with pure normalize helper (data.py)"
 
 ---
 
-### Task 7: `run_mma.py` — end-to-end entrypoint (writes both CSVs)
+### Task 7: `run_mma.py` — end-to-end entrypoint (writes both `.xlsx`)
 
 **Files:**
 - Create: `src/robusta/run_mma.py`
@@ -1060,7 +1060,8 @@ git commit -m "feat: add yfinance loader with pure normalize helper (data.py)"
 - Consumes: `target.add_labels`, `indicators.mma`, `sweep.run_sweep`, `data.load_prices`.
 - Produces:
   - `build_summary(prices: pd.DataFrame, *, windows, tols, horizons, min_events=5) -> tuple[pd.DataFrame, pd.DataFrame]` — pure orchestration over an already-loaded price df; returns `(analysis_df, summary_df)` (network-free; unit-tested).
-  - `main(ticker="^BVSP", start="2010-01-01", end="2024-12-31") -> None` — loads prices, calls `build_summary`, writes `output/analysis_mma.csv` (with date index) and `output/summary_mma.csv`.
+  - `write_outputs(analysis, summary, outdir="output") -> tuple[Path, Path]` — creates `outdir` and writes `analysis_mma.xlsx` (with date index) + `summary_mma.xlsx` (`index=False`) via `to_excel`; network-free, unit-tested.
+  - `main(ticker="^BVSP", start="2010-01-01", end="2024-12-31") -> None` — loads prices, calls `build_summary`, then `write_outputs`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1104,7 +1105,7 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'robusta.run_mma'`.
 
 `src/robusta/run_mma.py`:
 ```python
-# Path para criar a pasta output e escrever os CSVs.
+# Path para criar a pasta output e escrever os .xlsx.
 from pathlib import Path
 # pandas para o tipo do df.
 import pandas as pd
@@ -1136,7 +1137,34 @@ def build_summary(prices: pd.DataFrame, *, windows, tols, horizons, min_events: 
     return run_sweep(labeled, mma, grid, horizons, min_events=min_events)
 
 
-# Entrypoint de linha de comando: baixa, resume e salva os dois CSVs.
+# Escreve as duas saídas em disco no formato .xlsx.
+def write_outputs(analysis, summary, outdir="output"):
+    """
+    Por quê: isolar a escrita em disco (formato .xlsx, via engine openpyxl) da
+    lógica e do download, para poder testá-la SEM rede e trocar o formato/local
+    num só ponto.
+
+    Lógica (Entrada → Saída):
+      Entrada: analysis, summary e a pasta de saída.
+      Fase 1: garante a existência da pasta.
+      Fase 2: escreve o analysis (índice de datas) em .xlsx.
+      Fase 3: escreve o summary (sem índice) em .xlsx.
+      Saída: (caminho_analysis, caminho_summary).
+    """
+    # Fase 1: destino como Path; cria a pasta (e pais) se faltar.
+    out = Path(outdir)
+    out.mkdir(parents=True, exist_ok=True)
+    # Fase 2: caminho e escrita do df-fundação por dia.
+    analysis_path = out / "analysis_mma.xlsx"
+    analysis.to_excel(analysis_path)
+    # Fase 3: caminho e escrita do summary de modelos.
+    summary_path = out / "summary_mma.xlsx"
+    summary.to_excel(summary_path, index=False)
+    # Saída: os dois caminhos.
+    return analysis_path, summary_path
+
+
+# Entrypoint de linha de comando: baixa, resume e salva os dois .xlsx.
 def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-31") -> None:
     """
     Por quê: ponto de entrada humano; concentra o I/O (download + escrita) fora da
@@ -1146,8 +1174,8 @@ def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-3
       Entrada: ticker e janela de datas.
       Fase 1: baixa os preços (rede).
       Fase 2: roda build_summary com o grid default.
-      Fase 3: garante a pasta output e escreve os dois CSVs.
-      Saída: output/analysis_mma.csv e output/summary_mma.csv em disco.
+      Fase 3: escreve as duas saídas .xlsx via write_outputs.
+      Saída: output/analysis_mma.xlsx e output/summary_mma.xlsx em disco.
     """
     # Fase 1: download dos preços do ticker.
     prices = load_prices(ticker, start, end)
@@ -1161,14 +1189,10 @@ def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-3
         # Horizontes default (a daylist).
         horizons=[10, 20, 30, 45, 90],
     )
-    # Fase 3: cria a pasta output se não existir.
-    Path("output").mkdir(exist_ok=True)
-    # Fase 3: salva o df-fundação enriquecido COM o índice de datas (para revisão).
-    analysis.to_csv("output/analysis_mma.csv")
-    # Fase 3: salva o summary de modelos (sem o índice numérico).
-    summary.to_csv("output/summary_mma.csv", index=False)
+    # Fase 3: escreve os dois .xlsx via write_outputs.
+    analysis_path, summary_path = write_outputs(analysis, summary)
     # Fase 3: feedback no console de onde os arquivos foram salvos.
-    print(f"analysis_mma.csv ({len(analysis)} dias) e summary_mma.csv ({len(summary)} modelos) salvos em output/")
+    print(f"{analysis_path.name} ({len(analysis)} dias) e {summary_path.name} ({len(summary)} modelos) salvos em output/")
 
 
 # Permite rodar como script: `python -m robusta.run_mma`.
@@ -1198,13 +1222,13 @@ git commit -m "feat: end-to-end mma entrypoint writing analysis + summary CSVs"
 
 Run: `PYTHONPATH=src uv run python -m robusta.run_mma`
 (The `PYTHONPATH=src` is required: the `pyproject.toml` `pythonpath` only applies to pytest, not to `python -m`. On PowerShell: `$env:PYTHONPATH="src"; uv run python -m robusta.run_mma`.)
-Expected: prints the save message; `output/analysis_mma.csv` (per-day, ~50 columns) and `output/summary_mma.csv` (150 rows = 75 modelos × 2 famílias) exist. (Requires network; not part of the test suite.) **Verified 2026-06-29 on `^BVSP`: 3715 dias, 150 modelos.**
+Expected: prints the save message; `output/analysis_mma.xlsx` (per-day, ~50 columns) and `output/summary_mma.xlsx` (150 rows = 75 modelos × 2 famílias) exist. (Requires network; not part of the test suite.) **Verified 2026-06-29 on `^BVSP`: 3715 dias, 150 modelos.**
 
 ---
 
 ## Done When
 - `uv run pytest -v` is green across all modules.
-- `python -m robusta.run_mma` produces BOTH `output/analysis_mma.csv` (per-day foundation df) and `output/summary_mma.csv` (per-model) — manual, networked check.
+- `python -m robusta.run_mma` produces BOTH `output/analysis_mma.xlsx` (per-day foundation df) and `output/summary_mma.xlsx` (per-model) — manual, networked check.
 - The foundation df accumulates all calculation columns and is reviewable row-by-row.
 - Every function carries the structured docstring + line comments required by the project convention.
 - `planning/PLAN.md` is updated to mark the build phase and link this plan.

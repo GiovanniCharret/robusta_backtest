@@ -30,7 +30,34 @@ def build_summary(prices: pd.DataFrame, *, windows, tols, horizons, min_events: 
     return run_sweep(labeled, mma, grid, horizons, min_events=min_events)
 
 
-# Entrypoint de linha de comando: baixa, resume e salva os dois CSVs.
+# Escreve as duas saídas em disco no formato .xlsx.
+def write_outputs(analysis, summary, outdir="output"):
+    """
+    Por quê: isolar a escrita em disco (formato .xlsx, via engine openpyxl) da
+    lógica e do download, para poder testá-la SEM rede e trocar o formato/local
+    num só ponto.
+
+    Lógica (Entrada → Saída):
+      Entrada: df-fundação enriquecido, summary e a pasta de saída.
+      Fase 1: garante a existência da pasta de saída.
+      Fase 2: escreve o analysis (mantendo o índice de datas) em .xlsx.
+      Fase 3: escreve o summary (sem o índice numérico) em .xlsx.
+      Saída: tupla (caminho_analysis, caminho_summary).
+    """
+    # Fase 1: normaliza o destino em Path e cria a pasta (inclusive pais) se faltar.
+    out = Path(outdir)
+    out.mkdir(parents=True, exist_ok=True)
+    # Fase 2: caminho e escrita do df-fundação por dia (índice de datas preservado).
+    analysis_path = out / "analysis_mma.xlsx"
+    analysis.to_excel(analysis_path)
+    # Fase 3: caminho e escrita do summary de modelos (sem índice numérico).
+    summary_path = out / "summary_mma.xlsx"
+    summary.to_excel(summary_path, index=False)
+    # Saída: os dois caminhos escritos.
+    return analysis_path, summary_path
+
+
+# Entrypoint de linha de comando: baixa, resume e salva os dois .xlsx.
 def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-31") -> None:
     """
     Por quê: ponto de entrada humano; concentra o I/O (download + escrita) fora da
@@ -40,8 +67,8 @@ def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-3
       Entrada: ticker e janela de datas.
       Fase 1: baixa os preços (rede).
       Fase 2: roda build_summary com o grid default.
-      Fase 3: garante a pasta output e escreve os dois CSVs.
-      Saída: output/analysis_mma.csv e output/summary_mma.csv em disco.
+      Fase 3: escreve as duas saídas .xlsx via write_outputs.
+      Saída: output/analysis_mma.xlsx e output/summary_mma.xlsx em disco.
     """
     # Fase 1: download dos preços do ticker.
     prices = load_prices(ticker, start, end)
@@ -55,14 +82,10 @@ def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-3
         # Horizontes default (a daylist).
         horizons=[10, 20, 30, 45, 90],
     )
-    # Fase 3: cria a pasta output se não existir.
-    Path("output").mkdir(exist_ok=True)
-    # Fase 3: salva o df-fundação enriquecido COM o índice de datas (para revisão).
-    analysis.to_csv("output/analysis_mma.csv")
-    # Fase 3: salva o summary de modelos (sem o índice numérico).
-    summary.to_csv("output/summary_mma.csv", index=False)
+    # Fase 3: escreve os dois .xlsx (pasta default output/).
+    analysis_path, summary_path = write_outputs(analysis, summary)
     # Fase 3: feedback no console de onde os arquivos foram salvos.
-    print(f"analysis_mma.csv ({len(analysis)} dias) e summary_mma.csv ({len(summary)} modelos) salvos em output/")
+    print(f"{analysis_path.name} ({len(analysis)} dias) e {summary_path.name} ({len(summary)} modelos) salvos em output/")
 
 
 # Permite rodar como script: `python -m robusta.run_mma`.

@@ -1,5 +1,7 @@
-# A orquestração pura sob teste.
-from robusta.run_mma import build_summary
+# pandas para reler o xlsx escrito.
+import pandas as pd
+# A orquestração pura e a escrita de saída sob teste.
+from robusta.run_mma import build_summary, write_outputs
 
 
 # Teste e2e (sem rede): df sintético → (analysis, summary) coerentes.
@@ -57,3 +59,28 @@ def test_build_summary_min_events_degrades(synthetic_prices):
     )
     # Saída: todos os modelos degradam para sem_eventos.
     assert (summary["status"] == "sem_eventos").all()
+
+
+# Correção: a exportação é em .xlsx. Testa a escrita sem rede (em tmp_path).
+def test_write_outputs_writes_readable_xlsx(synthetic_prices, tmp_path):
+    """
+    Por quê: a saída precisa ser .xlsx (não .csv); este teste prova que os dois
+    arquivos são gravados na pasta e podem ser relidos pelo pandas (engine openpyxl),
+    sem tocar a rede.
+
+    Lógica: Entrada (build_summary sintético) → Fase 1 write_outputs → Fase 2 arquivos
+    existem → Fase 3 relê o summary → Saída.
+    """
+    # Entrada: gera as duas saídas a partir de preços sintéticos.
+    analysis, summary = build_summary(
+        synthetic_prices, windows=[5, 20], tols=[0.0], horizons=[10], min_events=1
+    )
+    # Fase 1: escreve na pasta temporária do teste.
+    analysis_path, summary_path = write_outputs(analysis, summary, outdir=tmp_path)
+    # Fase 2: ambos os arquivos .xlsx existem com os nomes corretos.
+    assert analysis_path.name == "analysis_mma.xlsx" and analysis_path.exists()
+    assert summary_path.name == "summary_mma.xlsx" and summary_path.exists()
+    # Fase 3: o summary relido bate em nº de linhas e tem a coluna family.
+    back = pd.read_excel(summary_path)
+    # Saída: roundtrip íntegro.
+    assert len(back) == len(summary) and "family" in back.columns

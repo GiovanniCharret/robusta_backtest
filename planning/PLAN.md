@@ -19,7 +19,7 @@
 - **Sweep** de parâmetros, 1 preditor por modelo agora; `fit_logit` aceita N preditores (stepwise futuro).
 - Alvo = **retorno do Close** `Close[t+h]/Close[t]-1` (não da SMA); coluna contínua `ret_{h}d` fica ao lado do `y_{h}d` para revisão.
 - **Um df-fundação** (OHLCV do yfinance) ao qual todos os cálculos **adicionam colunas** (igual ao legado), revisável linha a linha.
-- **Duas saídas:** `output/analysis_mma.csv` (1 linha/dia, df-fundação enriquecido) e `output/summary_mma.csv` (1 linha/modelo).
+- **Duas saídas:** `output/analysis_mma.xlsx` (1 linha/dia, df-fundação enriquecido) e `output/summary_mma.xlsx` (1 linha/modelo). Formato **.xlsx** (engine openpyxl).
 - Stack: `statsmodels`, `pandas`, `yfinance`, `pytest`, ambiente `uv`. Indicador como **plug-in**.
 
 ## Fase 0 — Planejamento
@@ -39,7 +39,7 @@ Inclui as lacunas ALTA/MÉDIA de `TESTES.md` dobradas nos testes de cada fase.
 - [x] T4 — `modeling.py` (logística + OLS + casos de borda). _6 testes_
 - [x] T5 — `sweep.py` (grid → analysis + summary). _4 testes_
 - [x] T6 — `data.py` (loader yfinance, rede isolada). _3 testes_
-- [x] T7 — `run_mma.py` (entrypoint e2e → analysis_mma.csv + summary_mma.csv). _3 testes_
+- [x] T7 — `run_mma.py` (entrypoint e2e → analysis_mma.xlsx + summary_mma.xlsx). _4 testes_
 
 **Rodar o pipeline real:** `PYTHONPATH=src uv run python -m robusta.run_mma` (PowerShell: `$env:PYTHONPATH="src"; uv run python -m robusta.run_mma`).
 

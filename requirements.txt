@@ -4,12 +4,14 @@ cffi==2.0.0
 charset-normalizer==3.4.7
 colorama==0.4.6
 curl-cffi==0.15.0
+et-xmlfile==2.0.0
 idna==3.18
 iniconfig==2.3.0
 markdown-it-py==4.2.0
 mdurl==0.1.2
 multitasking==0.0.13
 numpy==2.5.0
+openpyxl==3.1.5
 packaging==26.2
 pandas==3.0.3
 patsy==1.0.2
