@@ -34,20 +34,21 @@ def normalize_ohlcv(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 # Baixa os preços de um ticker e devolve o df-fundação OHLCV normalizado.
-def load_prices(ticker: str, start: str, end: str) -> pd.DataFrame:
+def load_prices(ticker: str, period: str = "10y") -> pd.DataFrame:
     """
     Por quê: concentrar TODO o acesso à rede num único ponto, para que os demais
-    módulos sejam puros e testáveis. Não é coberto por teste unitário (usa rede).
+    módulos sejam puros e testáveis. Usa uma janela RELATIVA (period) em vez de
+    datas fixas, para os dados não envelhecerem. Não é coberto por teste (usa rede).
 
     Lógica (Entrada → Saída):
-      Entrada: ticker e janela de datas (start, end).
-      Fase 1: baixa os dados via yfinance.
+      Entrada: ticker e janela relativa (period: "5y", "10y", "max", ...).
+      Fase 1: baixa os últimos `period` de dados via yfinance (janela móvel até hoje).
       Fase 2: achata colunas MultiIndex se houver.
       Fase 3: normaliza para OHLCV ordenado.
       Saída: df-fundação pronto para add_labels.
     """
-    # Fase 1: download bruto (auto_adjust=True usa preços ajustados no Close).
-    raw = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
+    # Fase 1: download bruto pelo period (auto_adjust=True usa preços ajustados no Close).
+    raw = yf.download(ticker, period=period, auto_adjust=True, progress=False)
     # Fase 2: yfinance pode devolver colunas MultiIndex (1 ticker) → achata.
     if isinstance(raw.columns, pd.MultiIndex):
         # Mantém o primeiro nível (Open/High/.../Close), descartando o ticker.

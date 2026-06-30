@@ -31,7 +31,7 @@
 
 ## Fase 1 — Implementação (rastreio por tarefa do plano)
 
-Concluída em 2026-06-29 — **28 testes passando** (`uv run pytest`); e2e verificado em `^BVSP` (3715 dias, 150 modelos).
+Concluída em 2026-06-29 — **33 testes passando** (`uv run pytest`); e2e verificado em `^BVSP` (`period="10y"`, ~2483 dias, 150 modelos). Dados via `yfinance` por **janela relativa** (`period`, ex. "5y"/"10y"), não datas fixas.
 Inclui as lacunas ALTA/MÉDIA de `TESTES.md` dobradas nos testes de cada fase.
 
 - [x] T1 — Scaffolding & ambiente (git init, uv, pytest, fixtures). _smoke 2 testes_

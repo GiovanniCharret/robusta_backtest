@@ -100,20 +100,20 @@ def write_outputs(analysis, summary, outdir="output"):
 
 
 # Entrypoint de linha de comando: baixa, resume e salva os dois .xlsx.
-def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-31") -> None:
+def main(ticker: str = "^BVSP", period: str = "10y") -> None:
     """
     Por quê: ponto de entrada humano; concentra o I/O (download + escrita) fora da
     lógica pura para manter build_summary testável.
 
     Lógica (Entrada → Saída):
-      Entrada: ticker e janela de datas.
-      Fase 1: baixa os preços (rede).
+      Entrada: ticker e janela relativa (period, ex. "5y", "10y").
+      Fase 1: baixa os preços dos últimos `period` (rede).
       Fase 2: roda build_summary com o grid default.
       Fase 3: escreve as duas saídas .xlsx via write_outputs.
       Saída: output/analysis_mma.xlsx e output/summary_mma.xlsx em disco.
     """
-    # Fase 1: download dos preços do ticker.
-    prices = load_prices(ticker, start, end)
+    # Fase 1: download dos preços do ticker pela janela relativa.
+    prices = load_prices(ticker, period)
     # Fase 2: gera as duas saídas com os grids default do projeto.
     analysis, summary = build_summary(
         prices,

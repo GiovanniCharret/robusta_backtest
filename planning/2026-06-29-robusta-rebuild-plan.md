@@ -917,7 +917,7 @@ git commit -m "feat: sweep accumulates columns and returns (analysis, summary)"
 - Consumes: nothing internal (wraps `yfinance`).
 - Produces:
   - `normalize_ohlcv(raw: pd.DataFrame) -> pd.DataFrame` — pure: keeps `Open,High,Low,Close,Volume`, sorts by index, raises `ValueError` if `Close` missing.
-  - `load_prices(ticker: str, start: str, end: str) -> pd.DataFrame` — calls `yfinance.download` then `normalize_ohlcv`. **Not unit-tested** (network).
+  - `load_prices(ticker: str, period: str = "10y") -> pd.DataFrame` — calls `yfinance.download(period=...)` (relative window, not fixed dates) then `normalize_ohlcv`. **Not unit-tested** (network).
 
 - [ ] **Step 1: Write the failing test (pure helper only)**
 
@@ -1015,7 +1015,7 @@ def normalize_ohlcv(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 # Baixa os preços de um ticker e devolve o df-fundação OHLCV normalizado.
-def load_prices(ticker: str, start: str, end: str) -> pd.DataFrame:
+def load_prices(ticker: str, period: str = "10y") -> pd.DataFrame:
     """
     Por quê: concentrar TODO o acesso à rede num único ponto, para que os demais
     módulos sejam puros e testáveis. Não é coberto por teste unitário (usa rede).
@@ -1028,7 +1028,7 @@ def load_prices(ticker: str, start: str, end: str) -> pd.DataFrame:
       Saída: df-fundação pronto para add_labels.
     """
     # Fase 1: download bruto (auto_adjust=True usa preços ajustados no Close).
-    raw = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
+    raw = yf.download(ticker, period=period, auto_adjust=True, progress=False)
     # Fase 2: yfinance pode devolver colunas MultiIndex (1 ticker) → achata.
     if isinstance(raw.columns, pd.MultiIndex):
         # Mantém o primeiro nível (Open/High/.../Close), descartando o ticker.
@@ -1063,7 +1063,7 @@ git commit -m "feat: add yfinance loader with pure normalize helper (data.py)"
   - `build_summary(prices: pd.DataFrame, *, windows, tols, horizons, min_events=5) -> tuple[pd.DataFrame, pd.DataFrame]` — pure orchestration over an already-loaded price df; returns `(analysis_df, summary_df)` (network-free; unit-tested).
   - `summary_dictionary() -> pd.DataFrame` — legenda (1 linha por coluna do summary: `coluna, grupo, significado, como_ler`).
   - `write_outputs(analysis, summary, outdir="output") -> tuple[Path, Path]` — creates `outdir` and writes `analysis_mma.xlsx` (date index) + `summary_mma.xlsx` (**2 abas:** `summary` + `dicionário`) via `pd.ExcelWriter`; network-free, unit-tested.
-  - `main(ticker="^BVSP", start="2010-01-01", end="2024-12-31") -> None` — loads prices, calls `build_summary`, then `write_outputs`.
+  - `main(ticker="^BVSP", period="10y") -> None` — loads prices (relative window), calls `build_summary`, then `write_outputs`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1167,7 +1167,7 @@ def write_outputs(analysis, summary, outdir="output"):
 
 
 # Entrypoint de linha de comando: baixa, resume e salva os dois .xlsx.
-def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-31") -> None:
+def main(ticker: str = "^BVSP", period: str = "10y") -> None:
     """
     Por quê: ponto de entrada humano; concentra o I/O (download + escrita) fora da
     lógica pura para manter build_summary testável.
@@ -1180,7 +1180,7 @@ def main(ticker: str = "^BVSP", start: str = "2010-01-01", end: str = "2024-12-3
       Saída: output/analysis_mma.xlsx e output/summary_mma.xlsx em disco.
     """
     # Fase 1: download dos preços do ticker.
-    prices = load_prices(ticker, start, end)
+    prices = load_prices(ticker, period)
     # Fase 2: gera as duas saídas com os grids default do projeto.
     analysis, summary = build_summary(
         prices,
@@ -1224,7 +1224,7 @@ git commit -m "feat: end-to-end mma entrypoint writing analysis + summary CSVs"
 
 Run: `PYTHONPATH=src uv run python -m robusta.run_mma`
 (The `PYTHONPATH=src` is required: the `pyproject.toml` `pythonpath` only applies to pytest, not to `python -m`. On PowerShell: `$env:PYTHONPATH="src"; uv run python -m robusta.run_mma`.)
-Expected: prints the save message; `output/analysis_mma.xlsx` (per-day, ~50 columns) and `output/summary_mma.xlsx` (150 rows = 75 modelos × 2 famílias) exist. (Requires network; not part of the test suite.) **Verified 2026-06-29 on `^BVSP`: 3715 dias, 150 modelos.**
+Expected: prints the save message; `output/analysis_mma.xlsx` (per-day, ~50 columns) and `output/summary_mma.xlsx` (150 rows = 75 modelos × 2 famílias) exist. (Requires network; not part of the test suite.) **Verified 2026-06-29 on `^BVSP` (period="10y"): ~2483 dias, 150 modelos** (o nº de dias varia com `period` e a data atual).
 
 ---
 
