@@ -14,6 +14,7 @@
 
 - **Duas famílias de modelo por sweep:** Logística sobre `y_{h}d` (0/1, pseudo-R² McFadden) **e** OLS sobre `ret_{h}d` (contínuo, R² clássico). Summary em formato longo com coluna `family`.
 - **Seleção de variáveis** (stepwise/Lasso/SFS dos notebooks) é **futuro** — precisa de multi-preditor.
+- **Associação 2×2 (complementar):** nas linhas `logit`, o summary traz `odds_ratio`, `lift` e `fisher_p` (tabela rompimento × alta) — à prova de falha, e `odds_ratio` ≈ `exp(coef)`. NaN nas linhas `ols`.
 - **Ticker único** via `yfinance`; carga parametrizada por ticker/período.
 - Variável independente = **dummy de rompimento** (Close cruza a mma hoje, com tolerância).
 - **Sweep** de parâmetros, 1 preditor por modelo agora; `fit_logit` aceita N preditores (stepwise futuro).

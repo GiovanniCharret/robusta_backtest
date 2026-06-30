@@ -1,8 +1,8 @@
 # pandas/numpy para plantar uma relação conhecida entre dummy e alvo.
 import pandas as pd
 import numpy as np
-# As duas funções sob teste.
-from robusta.modeling import fit_logit, fit_ols
+# As funções sob teste (fits + associação 2×2).
+from robusta.modeling import fit_logit, fit_ols, contingency_metrics
 
 
 # Teste: relação positiva plantada → coef positivo, family logit, status ok.
@@ -125,3 +125,41 @@ def test_logit_and_ols_share_schema():
     kols = set(fit_ols(df, "ret_20d", ["x"]).keys())
     # Fase 2/Saída: mesmas chaves nos dois dicionários.
     assert klogit == kols
+
+
+# Associação 2×2: odds ratio e lift batem com a tabela de contingência conhecida.
+def test_contingency_metrics_matches_known_table():
+    """
+    Por quê: a tabela 2×2 (rompimento × alta) dá odds ratio e lift interpretáveis,
+    à prova de falha. Plantamos uma tabela conhecida e conferimos os valores exatos.
+
+    Lógica: Entrada (2×2 plantada) → Fase 1 contingency_metrics → Fase 2 OR/lift/Fisher → Saída.
+    """
+    # Entrada: x=1 em 50 dias (40 subiram, 10 não); x=0 em 50 dias (20 subiram, 30 não).
+    x = [1] * 50 + [0] * 50
+    y = [1] * 40 + [0] * 10 + [1] * 20 + [0] * 30
+    df = pd.DataFrame({"y_10d": y, "xb": x})
+    # Fase 1: calcula as métricas 2×2.
+    res = contingency_metrics(df, "y_10d", ["xb"])
+    # Fase 2: odds ratio = (40*30)/(10*20) = 6.0.
+    assert round(res["odds_ratio"], 3) == 6.0
+    # Fase 2: lift = P(alta|romp)/P(alta) = (40/50)/(60/100) = 1.333.
+    assert round(res["lift"], 3) == 1.333
+    # Saída: Fisher exato significativo.
+    assert res["fisher_p"] < 0.05
+
+
+# Associação 2×2: sem eventos → tudo NaN (à prova de falha, sem quebrar).
+def test_contingency_metrics_no_events_nan():
+    """
+    Por quê: como o fit, a associação deve degradar com elegância quando não há
+    rompimentos suficientes — nunca lançar exceção.
+
+    Lógica: Entrada (dummy toda 0) → Fase 1 contingency_metrics → Fase 2 NaN → Saída.
+    """
+    # Entrada: alvo varia, dummy constante em 0.
+    df = pd.DataFrame({"y_10d": [0, 1, 0, 1, 1, 0], "xb": [0, 0, 0, 0, 0, 0]})
+    # Fase 1: tenta calcular com min_events padrão.
+    res = contingency_metrics(df, "y_10d", ["xb"], min_events=5)
+    # Fase 2/Saída: as três métricas são NaN.
+    assert np.isnan(res["odds_ratio"]) and np.isnan(res["lift"]) and np.isnan(res["fisher_p"])

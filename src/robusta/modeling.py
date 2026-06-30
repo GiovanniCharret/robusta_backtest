@@ -6,6 +6,8 @@ import pandas as pd
 import statsmodels.api as sm
 # Exceção específica de separação perfeita (modelo não identificável).
 from statsmodels.tools.sm_exceptions import PerfectSeparationError
+# Teste exato de Fisher para o p-valor da tabela de contingência 2×2.
+from scipy.stats import fisher_exact
 
 
 # Molde padrão de uma linha de métricas para os caminhos de borda (sem ajuste).
@@ -84,6 +86,49 @@ def fit_logit(df: pd.DataFrame, y_col: str, x_cols: list[str], min_events: int =
         # Ajuste bem-sucedido.
         "status": "ok",
     }
+
+
+# Mede a associação 2×2 (rompimento × alta), sem ajuste e à prova de falha.
+def contingency_metrics(df: pd.DataFrame, y_col: str, x_cols: list[str], min_events: int = 5) -> dict:
+    """
+    Por quê: para o alvo binário, a tabela 2×2 entre a dummy de rompimento e a alta
+    dá medidas de associação interpretáveis (odds ratio, lift) e um p-valor exato
+    (Fisher) que NUNCA quebram — complementam a logística sem risco de separação.
+
+    Lógica (Entrada → Saída):
+      Entrada: df + coluna-alvo binária + colunas-preditoras (usa a 1ª dummy) + mín. eventos.
+      Fase 1: descarta NA e conta eventos; se poucos ou variável constante → tudo NaN.
+      Fase 2: monta a tabela 2×2 (a,b,c,d) de (rompimento × alta).
+      Fase 3: calcula odds ratio amostral, lift e o p-valor de Fisher.
+      Saída: dicionário {odds_ratio, lift, fisher_p}.
+    """
+    # Fase 1: limpa NA e separa a dummy (1º preditor) e o alvo.
+    data = df[[y_col, *x_cols]].dropna()
+    # Fase 1: tamanho e contagem de eventos.
+    n = int(len(data))
+    x = data[x_cols[0]]
+    y = data[y_col]
+    n_eventos = int(x.sum()) if n else 0
+    # Fase 1: molde NaN para os caminhos sem associação definível.
+    nan = {"odds_ratio": np.nan, "lift": np.nan, "fisher_p": np.nan}
+    # Fase 1: poucos eventos, ou dummy/alvo constantes → não há tabela 2×2 útil.
+    if n_eventos < min_events or x.nunique() < 2 or y.nunique() < 2:
+        # Retorna o molde NaN.
+        return nan
+    # Fase 2: células da tabela 2×2 — a=romp&alta, b=romp&não, c=não-romp&alta, d=não-romp&não.
+    a = int(((x == 1) & (y == 1)).sum())
+    b = int(((x == 1) & (y == 0)).sum())
+    c = int(((x == 0) & (y == 1)).sum())
+    d = int(((x == 0) & (y == 0)).sum())
+    # Fase 3: odds ratio amostral (a*d)/(b*c); NaN se o denominador zera (indefinido).
+    odds_ratio = (a * d) / (b * c) if (b * c) else np.nan
+    # Fase 3: lift = P(alta|rompimento) / P(alta) — quantas vezes acima da taxa-base.
+    lift = (a / (a + b)) / ((a + c) / n)
+    # Fase 3: p-valor exato de Fisher (bicaudal) na tabela 2×2.
+    fisher_p = float(fisher_exact([[a, b], [c, d]])[1])
+    # Saída: as três métricas de associação.
+    return {"odds_ratio": float(odds_ratio) if odds_ratio == odds_ratio else np.nan,
+            "lift": float(lift), "fisher_p": fisher_p}
 
 
 # Ajusta um OLS de um (ou mais) preditor(es) sobre o retorno contínuo e resume métricas.

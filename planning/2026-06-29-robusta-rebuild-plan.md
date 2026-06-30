@@ -510,6 +510,7 @@ git commit -m "feat: add mma plug-in that appends value/above/break columns"
 - Produces two functions with the **same return schema** (keys `family, n, n_eventos, r2, coef, p_value, llf, accuracy, status`; `coef`/`p_value` refer to `x_cols[0]`; `status ∈ {"ok","sem_eventos","separacao","erro"}`):
   - `fit_logit(df, y_col, x_cols, min_events=5) -> dict` — `family="logit"`, `r2`=McFadden pseudo, `accuracy`=in-sample.
   - `fit_ols(df, y_col, x_cols, min_events=5) -> dict` — `family="ols"`, `r2`=classic R², `accuracy`=`NaN`.
+- Plus `contingency_metrics(df, y_col, x_cols, min_events=5) -> dict` — association from the 2×2 (breakout × up) table: `{odds_ratio, lift, fisher_p}`. No fitting (crash-proof); returns all-NaN below `min_events`. `odds_ratio` ≈ `exp(coef)` of the logit (sanity). Used by sweep for the **logit** rows only.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -760,7 +761,7 @@ git commit -m "feat: add logistic + OLS fits with edge-case handling (modeling.p
 - Consumes: an already-labeled foundation df (`y_{h}d` and `ret_{h}d` present), an indicator **module** (exposing `NAME`, `signal_col`, `add_columns`), `modeling.fit_logit` + `modeling.fit_ols`.
 - Produces: `run_sweep(df, indicator, param_grid, horizons, min_events=5) -> tuple[pd.DataFrame, pd.DataFrame]`.
   `param_grid: dict[str, list]` (e.g. `{"window":[...], "tol":[...]}`).
-  Returns `(analysis_df, summary_df)`: `analysis_df` is the foundation df with every combo's columns accumulated; `summary_df` has **two rows per (param combo × horizon)** — `family="logit"` (fit on `y_{h}d`) and `family="ols"` (fit on `ret_{h}d`) — with columns `indicator, <params...>, horizon, family, n, n_eventos, r2, coef, p_value, llf, accuracy, status`, sorted by `["family","r2"]` (r2 desc, NaN last).
+  Returns `(analysis_df, summary_df)`: `analysis_df` is the foundation df with every combo's columns accumulated; `summary_df` has **two rows per (param combo × horizon)** — `family="logit"` (fit on `y_{h}d`) and `family="ols"` (fit on `ret_{h}d`) — with columns `indicator, <params...>, horizon, family, n, n_eventos, r2, coef, p_value, llf, accuracy, status, odds_ratio, lift, fisher_p` (the last three are 2×2 association — populated for `logit`, `NaN` for `ols`), sorted by `["family","r2"]` (r2 desc, NaN last).
 
 - [ ] **Step 1: Write the failing test**
 

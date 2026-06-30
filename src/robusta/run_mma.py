@@ -59,6 +59,10 @@ def summary_dictionary() -> pd.DataFrame:
         {"coluna": "llf", "grupo": "métrica", "significado": "Log-likelihood (qualidade do ajuste)", "como_ler": "Diagnóstico; maior (menos negativo) = melhor. Só compare dentro da mesma family."},
         {"coluna": "accuracy", "grupo": "métrica", "significado": "Só logit: % de acerto subir/não, in-sample", "como_ler": "~0.53 = pouco acima do acaso; NaN no ols (não se aplica)."},
         {"coluna": "status", "grupo": "métrica", "significado": "Resultado do ajuste do modelo", "como_ler": "ok / sem_eventos (poucos rompimentos) / separacao / erro."},
+        # --- associação 2×2: medidas diretas da tabela rompimento × alta (só logit) ---
+        {"coluna": "odds_ratio", "grupo": "associação 2×2", "significado": "Razão de chances de subir em dia de rompimento vs dia normal (tabela 2×2)", "como_ler": "Só logit. >1 = rompimento favorece alta; ≈ exp(coef). NaN no ols / se indefinido."},
+        {"coluna": "lift", "grupo": "associação 2×2", "significado": "Quantas vezes mais provável subir após o rompimento vs a taxa-base", "como_ler": "Só logit. 1 = igual à base; 1,3 = 30% mais provável. NaN no ols."},
+        {"coluna": "fisher_p", "grupo": "associação 2×2", "significado": "p-valor do teste exato de Fisher na tabela 2×2", "como_ler": "Só logit. <0,05 = associação significativa; à prova de falha (não quebra). NaN no ols."},
     ]
     # Saída: DataFrame com a ordem de colunas fixada.
     return pd.DataFrame(linhas, columns=["coluna", "grupo", "significado", "como_ler"])

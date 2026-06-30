@@ -97,3 +97,25 @@ def test_run_sweep_large_window_robust_and_min_events(synthetic_prices):
     _, summary2 = run_sweep(df2, mma, {"window": [20], "tol": [0.0]}, [10], min_events=10_000)
     # Saída: degrade gracioso confirmado.
     assert (summary2["status"] == "sem_eventos").all()
+
+
+# As métricas de associação 2×2 só valem na família logit (NaN no ols).
+def test_run_sweep_contingency_only_on_logit(synthetic_prices):
+    """
+    Por quê: odds_ratio/lift/fisher_p vêm da tabela 2×2 (rompimento × alta) — só
+    fazem sentido no alvo binário (logit); no ols (alvo contínuo) ficam NaN.
+
+    Lógica: Entrada (preços) → Fase 1 sweep → Fase 2 colunas existem → Fase 3 ols NaN,
+    logit preenchido → Saída.
+    """
+    # Entrada/Fase 1: grid mínimo, eventos suficientes.
+    df = add_labels(synthetic_prices, horizons=[10])
+    _, summary = run_sweep(df, mma, {"window": [20], "tol": [0.0]}, [10], min_events=5)
+    # Fase 2: as três colunas de associação existem no summary.
+    for col in ["odds_ratio", "lift", "fisher_p"]:
+        assert col in summary.columns
+    # Fase 3: nas linhas ols, a associação 2×2 é sempre NaN.
+    assert summary[summary["family"] == "ols"]["odds_ratio"].isna().all()
+    # Saída: nas linhas logit que ajustaram (ok), a associação está preenchida.
+    logit_ok = summary[(summary["family"] == "logit") & (summary["status"] == "ok")]
+    assert logit_ok["odds_ratio"].notna().all()
