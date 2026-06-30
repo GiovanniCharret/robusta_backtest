@@ -7,6 +7,8 @@ from robusta.data import load_prices
 from robusta.target import add_labels
 from robusta.indicators import mma
 from robusta.sweep import run_sweep
+# Parâmetros ajustáveis centralizados (ticker, grids, period, saída).
+from robusta import config
 
 
 # Orquestração pura: de um df de preços às duas saídas (sem rede).
@@ -100,34 +102,36 @@ def write_outputs(analysis, summary, outdir="output"):
 
 
 # Entrypoint de linha de comando: baixa, resume e salva os dois .xlsx.
-def main(ticker: str = "^BVSP", period: str = "10y") -> None:
+def main(ticker: str = config.TICKER, period: str = config.PERIOD) -> None:
     """
     Por quê: ponto de entrada humano; concentra o I/O (download + escrita) fora da
-    lógica pura para manter build_summary testável.
+    lógica pura. TODOS os parâmetros vêm de config.py — ajuste lá, não aqui.
 
     Lógica (Entrada → Saída):
-      Entrada: ticker e janela relativa (period, ex. "5y", "10y").
+      Entrada: ticker e janela relativa (default de config; overrideáveis).
       Fase 1: baixa os preços dos últimos `period` (rede).
-      Fase 2: roda build_summary com o grid default.
-      Fase 3: escreve as duas saídas .xlsx via write_outputs.
-      Saída: output/analysis_mma.xlsx e output/summary_mma.xlsx em disco.
+      Fase 2: roda build_summary com os grids do config.
+      Fase 3: escreve as duas saídas .xlsx na pasta do config.
+      Saída: <OUTPUT_DIR>/analysis_mma.xlsx e summary_mma.xlsx em disco.
     """
     # Fase 1: download dos preços do ticker pela janela relativa.
     prices = load_prices(ticker, period)
-    # Fase 2: gera as duas saídas com os grids default do projeto.
+    # Fase 2: gera as duas saídas usando os grids centralizados em config.py.
     analysis, summary = build_summary(
         prices,
-        # Janelas default do sweep.
-        windows=[5, 10, 20, 50, 200],
-        # Tolerâncias default do sweep.
-        tols=[0.0, 0.01, 0.03],
-        # Horizontes default (a daylist).
-        horizons=[10, 20, 30, 45, 90],
+        # Janelas da média móvel (config.MMA_WINDOWS).
+        windows=config.MMA_WINDOWS,
+        # Tolerâncias do rompimento (config.TOLERANCES).
+        tols=config.TOLERANCES,
+        # Horizontes do alvo (config.HORIZONS).
+        horizons=config.HORIZONS,
+        # Mínimo de eventos por modelo (config.MIN_EVENTS).
+        min_events=config.MIN_EVENTS,
     )
-    # Fase 3: escreve os dois .xlsx (pasta default output/).
-    analysis_path, summary_path = write_outputs(analysis, summary)
+    # Fase 3: escreve os dois .xlsx na pasta de saída do config.
+    analysis_path, summary_path = write_outputs(analysis, summary, outdir=config.OUTPUT_DIR)
     # Fase 3: feedback no console de onde os arquivos foram salvos.
-    print(f"{analysis_path.name} ({len(analysis)} dias) e {summary_path.name} ({len(summary)} modelos) salvos em output/")
+    print(f"{analysis_path.name} ({len(analysis)} dias) e {summary_path.name} ({len(summary)} modelos) salvos em {config.OUTPUT_DIR}/")
 
 
 # Permite rodar como script: `python -m robusta.run_mma`.

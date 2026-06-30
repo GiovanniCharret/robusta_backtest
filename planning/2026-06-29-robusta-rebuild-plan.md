@@ -32,6 +32,7 @@ rebuild_robusta_backtests/
   .gitignore
   src/robusta/
     __init__.py
+    config.py             # PAINEL de parâmetros ajustáveis (ticker, period, grids, min_events, saída)
     data.py               # load_prices + normalize_ohlcv (yfinance isolated here)
     target.py             # add_labels: adds ret_{h}d + y_{h}d   [GENERIC, FIXED]
     indicators/
@@ -50,6 +51,7 @@ rebuild_robusta_backtests/
     test_sweep.py
     test_data.py
     test_run_mma.py
+    test_config.py
   output/                 # .xlsx (gitignored)
 ```
 

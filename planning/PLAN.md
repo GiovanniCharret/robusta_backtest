@@ -42,6 +42,8 @@ Inclui as lacunas ALTA/MÉDIA de `TESTES.md` dobradas nos testes de cada fase.
 - [x] T6 — `data.py` (loader yfinance, rede isolada). _3 testes_
 - [x] T7 — `run_mma.py` (entrypoint e2e → analysis_mma.xlsx + summary_mma.xlsx). _4 testes_
 
+**Parâmetros ajustáveis:** todos centralizados em `src/robusta/config.py` (ticker, period, janelas da mma, tolerâncias, horizontes, min_events, pasta de saída). Edite lá — nenhum outro código precisa mudar.
+
 **Rodar o pipeline real:** `PYTHONPATH=src uv run python -m robusta.run_mma` (PowerShell: `$env:PYTHONPATH="src"; uv run python -m robusta.run_mma`).
 
 ## Itens futuros (fora desta fase)
