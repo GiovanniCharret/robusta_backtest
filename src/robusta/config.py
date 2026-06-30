@@ -19,13 +19,13 @@ PERIOD = "10y"
 
 # === Indicador: média móvel (mma) ===
 # Janelas (em dias) da média móvel a varrer — a "mma_list".
-MMA_WINDOWS = [5, 10, 20, 50, 200]
+MMA_WINDOWS = [10, 26, 50, 200]
 # Tolerâncias do rompimento (fração acima da média): 0.0 = toca; 0.01 = 1%; 0.03 = 3%.
-TOLERANCES = [0.0, 0.01, 0.03]
+TOLERANCES = [0.0, 0.015, 0.03]
 
 # === Alvo (variável dependente) ===
 # Horizontes (dias à frente) que o alvo olha — a "daylist".
-HORIZONS = [10, 20, 30, 45, 90]
+HORIZONS = [20, 45, 90]
 
 # === Modelagem ===
 # Mínimo de rompimentos para ajustar um modelo (abaixo disso → status "sem_eventos").
@@ -34,3 +34,13 @@ MIN_EVENTS = 5
 # === Saída ===
 # Pasta onde os arquivos .xlsx são gravados.
 OUTPUT_DIR = "output"
+
+'''
+Rodar o pipeline real (gera os .xlsx) — precisa do PYTHONPATH=src
+
+# PowerShell (seu shell padrão):
+
+$env:PYTHONPATH="src" 
+
+uv run python -m robusta.run_mma
+'''

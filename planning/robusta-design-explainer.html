@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROBUSTA — como vamos reconstruir o backtest</title>
+<style>
+  :root {
+    --ivory:   #FAF9F5;
+    --slate:   #141413;
+    --clay:    #D97757;
+    --oat:     #E3DACC;
+    --olive:   #788C5D;
+    --sky:     #6A8CAF;
+    --gray-150:#F0EEE6;
+    --gray-300:#D1CFC5;
+    --gray-500:#87867F;
+    --gray-700:#3D3D3A;
+    --green:   #4F7942;
+    --red:     #B4503C;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ivory);
+    color: var(--gray-700);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    padding: 56px 24px 120px;
+  }
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 48px;
+  }
+  @media (max-width: 940px) { .page { grid-template-columns: 1fr; } aside { order: 2; position: static !important; } }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--clay);
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 36px;
+    color: var(--slate);
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    margin-bottom: 16px;
+  }
+  .lead { max-width: 660px; font-size: 16.5px; margin-bottom: 8px; color: var(--gray-700); }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 24px;
+    color: var(--slate);
+    margin: 52px 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sec-sub { font-size: 14px; color: var(--gray-500); margin-bottom: 20px; max-width: 640px; }
+  h3 { font-family: var(--serif); font-weight: 500; font-size: 18px; color: var(--slate); margin: 0 0 8px; }
+  p { margin-bottom: 12px; max-width: 680px; }
+  code { font-family: var(--mono); font-size: 12.5px; background: var(--gray-150); padding: 1px 5px; border-radius: 4px; color: var(--slate); }
+  strong { color: var(--slate); }
+  .term { border-bottom: 1.5px dotted var(--clay); color: var(--slate); }
+
+  /* cards */
+  .card {
+    border: 1.5px solid var(--gray-300);
+    border-radius: 14px;
+    background: #fff;
+    padding: 22px 24px;
+    margin: 14px 0;
+  }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+  .vs-card { border-radius: 14px; padding: 20px 22px; border: 1.5px solid var(--gray-300); }
+  .vs-old  { background: var(--gray-150); }
+  .vs-new  { background: #fff; border-color: var(--clay); }
+  .vs-tag  { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display:inline-block; padding: 3px 9px; border-radius: 7px; }
+  .tag-old { background: var(--oat); color: var(--gray-700); }
+  .tag-new { background: var(--clay); color: #fff; }
+  .vs-card ul { list-style: none; font-size: 13.5px; }
+  .vs-card li { padding: 5px 0 5px 20px; position: relative; }
+  .vs-card li::before { content: "—"; position: absolute; left: 0; color: var(--gray-500); }
+  .vs-new li::before { content: "✓"; color: var(--olive); font-weight: 700; }
+
+  /* demo panel */
+  .demo {
+    border: 1.5px solid var(--gray-300);
+    border-radius: 14px;
+    background: #fff;
+    padding: 24px;
+    margin: 14px 0;
+  }
+  svg { display: block; width: 100%; }
+  .ctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--gray-300); font-size: 13px; }
+  .ctl label { font-family: var(--mono); font-size: 11px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; }
+  .ctl input[type=range] { accent-color: var(--clay); width: 180px; }
+  .ctl .val { font-family: var(--mono); font-size: 13px; color: var(--slate); background: var(--gray-150); padding: 2px 8px; border-radius: 5px; }
+  .pill { font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 999px; }
+  .pill-1 { background: #E8F0E3; color: var(--green); border: 1px solid var(--olive); }
+  .pill-0 { background: #F6E7E2; color: var(--red);   border: 1px solid var(--red); }
+
+  /* legend */
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; margin-top: 6px; color: var(--gray-500); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* architecture */
+  .arch { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  .mod { border: 1.5px solid var(--gray-300); border-radius: 12px; background: #fff; padding: 14px 18px; display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: center; }
+  @media (max-width: 600px){ .mod { grid-template-columns: 1fr; gap: 4px; } }
+  .mod .name { font-family: var(--mono); font-size: 13px; color: var(--slate); font-weight: 600; }
+  .mod .desc { font-size: 13.5px; color: var(--gray-700); }
+  .mod-plug { border-color: var(--clay); border-width: 2px; background: linear-gradient(0deg,#fff,#fff), var(--ivory); position: relative; }
+  .mod-plug::after { content: "PLUG-IN"; position: absolute; top: -10px; right: 14px; background: var(--clay); color:#fff; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 6px; }
+  .mod-fixed .name::before { content: "🔒 "; }
+
+  /* sweep table */
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--gray-300); }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); font-weight: 500; }
+  td { font-family: var(--mono); font-size: 12.5px; color: var(--gray-700); }
+  tr.best td { background: #FBF3EF; color: var(--slate); }
+  tr.best td:first-child { border-left: 3px solid var(--clay); }
+
+  /* decisions */
+  .dec { display: grid; grid-template-columns: 180px 1fr; gap: 2px 18px; border: 1.5px solid var(--gray-300); border-radius: 12px; overflow: hidden; }
+  .dec > div { padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--gray-150); }
+  .dec .k { font-family: var(--mono); font-size: 12px; color: var(--gray-500); background: var(--gray-150); }
+  .dec .v { font-size: 14px; color: var(--slate); }
+  .dec .v b { color: var(--clay); }
+
+  .callout { border-left: 3px solid var(--sky); background: #EEF3F7; padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 16px 0; font-size: 14px; }
+  .callout .lab { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sky); display:block; margin-bottom: 4px; }
+  .warn { border-left-color: var(--clay); background: #FBF1ED; }
+  .warn .lab { color: var(--clay); }
+
+  pre.code { background: var(--slate); color: #E8E6DF; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; padding: 16px 18px; border-radius: 10px; overflow-x: auto; margin: 12px 0; }
+  pre.code .c { color: var(--gray-500); }
+  pre.code .k { color: #C9A6E8; }
+  pre.code .s { color: #9FC08A; }
+
+  /* aside nav */
+  aside { position: sticky; top: 48px; align-self: start; font-size: 13px; }
+  aside .nav-t { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-500); margin-bottom: 12px; }
+  aside a { display: block; color: var(--gray-700); text-decoration: none; padding: 5px 0; border-left: 2px solid var(--gray-300); padding-left: 12px; }
+  aside a:hover { color: var(--clay); border-color: var(--clay); }
+  .footer-note { margin-top: 64px; font-size: 12.5px; color: var(--gray-500); border-top: 1px solid var(--gray-300); padding-top: 16px; max-width: 680px; }
+</style>
+</head>
+<body>
+<div class="page">
+<main>
+
+  <div class="eyebrow">ROBUSTA · REBUILD · DESIGN</div>
+  <h1>Reconstruindo o backtest: de gatilhos para dummies + regressão</h1>
+  <p class="lead">Um mapa visual do que vamos construir. O sistema legado mistura cálculo de indicadores,
+  máquina de gatilhos e combinação de variáveis num só notebook. Aqui isolamos cada peça, trocamos os
+  gatilhos por <strong>dummies de rompimento</strong>, e medimos cada modelo com <strong>regressão logística</strong>.</p>
+
+  <!-- ───────────────────────── 1 ───────────────────────── -->
+  <h2 id="ideia">A ideia em uma frase</h2>
+  <div class="sec-sub">O que muda, e o que permanece igual ao legado.</div>
+
+  <div class="two-col">
+    <div class="vs-card vs-old">
+      <span class="vs-tag tag-old">Legado · v11.4.2</span>
+      <ul>
+        <li><code>_?value</code> → <code>_?gatilho</code> → persistência <em>k</em> dias → combinação de pares</li>
+        <li>Centenas de colunas, df pesado, difícil de auditar</li>
+        <li>Correlação de Pearson + médias de deslocamento</li>
+        <li>Tudo num notebook, sem testes</li>
+      </ul>
+    </div>
+    <div class="vs-card vs-new">
+      <span class="vs-tag tag-new">Rebuild</span>
+      <ul>
+        <li>Um indicador por vez → <strong>uma dummy de rompimento</strong></li>
+        <li>df enxuto, de <em>um</em> indicador, fácil de inspecionar</li>
+        <li>Regressão logística: pseudo-R², coef, <strong>p-valor</strong></li>
+        <li>Pacote modular, com testes</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <span class="lab">O que NÃO muda</span>
+    O mecanismo de <strong>deslocamento de datas</strong> (a "daylist") que cria a variável dependente é
+    herdado do legado. É o coração que paraleliza os resultados — explicado logo abaixo.
+  </div>
+
+  <!-- ───────────────────────── 2 ───────────────────────── -->
+  <h2 id="desloc">O coração: deslocamento de datas → variável dependente</h2>
+  <div class="sec-sub">Cada dia vira uma amostra rotulada. Olhamos <em>h</em> dias à frente e perguntamos:
+  o preço subiu? Sim → <span class="pill pill-1">1</span> &nbsp; Não → <span class="pill pill-0">0</span>.
+  Arraste o horizonte para ver o rótulo mudar.</div>
+
+  <div class="demo">
+    <svg id="shiftSvg" viewBox="0 0 720 280" role="img" aria-label="Série de preço com evento de rompimento e janela futura"></svg>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--slate)"></span> Close</span>
+      <span><span class="swatch" style="background:var(--sky)"></span> mma (média móvel)</span>
+      <span><span class="swatch" style="background:var(--clay)"></span> rompimento (dia t = preditor)</span>
+      <span><span class="swatch" style="background:var(--olive)"></span> janela futura (h dias)</span>
+    </div>
+    <div class="ctl">
+      <label for="hSlider">Horizonte h</label>
+      <input type="range" id="hSlider" min="5" max="90" step="5" value="20">
+      <span class="val" id="hVal">20 d</span>
+      <span style="flex:1"></span>
+      <span>Rótulo do dia do rompimento:</span>
+      <span id="labelPill" class="pill pill-1">1 (subiu)</span>
+    </div>
+  </div>
+
+  <pre class="code"><span class="c"># target.py — genérico, herdado do legado, NÃO depende do indicador</span>
+<span class="k">def</span> add_labels(df, horizons):
+    <span class="k">for</span> h <span class="k">in</span> horizons:                          <span class="c"># a "daylist"</span>
+        fwd = df[<span class="s">"Close"</span>].shift(-h) / df[<span class="s">"Close"</span>] - 1   <span class="c"># retorno futuro</span>
+        df[<span class="s">f"y_{h}d"</span>] = (fwd &gt; 0).astype(<span class="s">"Int8"</span>)     <span class="c"># 1 subiu, 0 não</span>
+    <span class="k">return</span> df</pre>
+
+  <div class="callout warn">
+    <span class="lab">Cuidado científico</span>
+    O rótulo usa o <em>futuro</em> de propósito (é backtest). Mas as últimas <em>h</em> linhas ficam sem rótulo
+    (<code>NaN</code>) e precisam ser descartadas — senão vazamos dados. O preditor (rompimento) só usa o passado/presente.
+  </div>
+
+  <!-- ───────────────────────── 3 ───────────────────────── -->
+  <h2 id="dummy">A variável independente: o rompimento</h2>
+  <div class="sec-sub">A dummy é <strong>1 apenas no dia</strong> em que o Close cruza a mma de baixo para cima,
+  respeitando uma <em>tolerância</em>. Nos demais dias, 0. É um evento — por isso raro.</div>
+
+  <div class="demo">
+    <svg id="crossSvg" viewBox="0 0 720 200" role="img" aria-label="Close cruzando a média móvel com banda de tolerância"></svg>
+  </div>
+
+  <pre class="code"><span class="c"># indicators/mma.py — o PLUG-IN. Troque este arquivo para mme, obv, ...</span>
+<span class="k">def</span> build_signal(df, window=<span class="s">20</span>, tol=<span class="s">0.0</span>):
+    mma   = df[<span class="s">"Close"</span>].rolling(window).mean()
+    above = df[<span class="s">"Close"</span>] &gt; mma * (<span class="s">1</span> + tol)        <span class="c"># estado: acima da banda</span>
+    cross = above &amp; ~above.shift(<span class="s">1</span>, fill_value=<span class="k">False</span>) <span class="c"># evento: cruzou hoje</span>
+    <span class="k">return</span> cross.astype(<span class="s">"Int8"</span>)                  <span class="c"># a dummy 0/1</span></pre>
+
+  <!-- ───────────────────────── 4 ───────────────────────── -->
+  <h2 id="arq">A arquitetura: indicador é um plug-in</h2>
+  <div class="sec-sub">Hoje <code>mma</code>. Amanhã você troca <em>só</em> o arquivo do indicador e roda <code>mme</code> ou <code>obv</code>.
+  O resto não muda. O df permanece de um indicador só.</div>
+
+  <div class="arch">
+    <div class="mod mod-fixed"><div class="name">data.py</div><div class="desc">Carrega OHLCV de <strong>um ticker</strong> via <code>yfinance</code> (parametrizável por ticker/período).</div></div>
+    <div class="mod mod-fixed"><div class="name">target.py</div><div class="desc">Deslocamento de datas → rótulos <code>y_{h}d</code> 0/1. <strong>Genérico e fixo</strong>: independe do indicador.</div></div>
+    <div class="mod mod-plug"><div class="name">indicators/mma.py</div><div class="desc">Produz a dummy de rompimento. <strong>É o que você troca</strong> para testar outro indicador. Mesma interface <code>build_signal(df, **params)</code>.</div></div>
+    <div class="mod"><div class="name">modeling.py</div><div class="desc">Ajusta a logística (<code>statsmodels</code>) e devolve pseudo-R², coef, p-valor, n, n_eventos. Aceita 1 preditor agora, N depois (stepwise).</div></div>
+    <div class="mod"><div class="name">sweep.py</div><div class="desc">Percorre o grid e monta o summary — 2 linhas por modelo (logística + OLS). Não conhece o indicador.</div></div>
+    <div class="mod"><div class="name">run_mma.py</div><div class="desc">Entrypoint: liga tudo para o <code>mma</code>. Para <code>mme</code>, um <code>run_mme.py</code> quase idêntico.</div></div>
+  </div>
+
+  <!-- ───────────────────────── 5 ───────────────────────── -->
+  <h2 id="sweep">Sweep → summary: comparar o que explica melhor</h2>
+  <div class="sec-sub">Cada combinação de <code>janela × tolerância × horizonte</code> vira <strong>uma</strong> regressão
+  logística com um preditor. Tudo cai numa tabela, ordenada pelo que melhor explicou.</div>
+
+  <div class="card" style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--gray-500);line-height:2;">
+      janela ∈ {5,10,20,50,200}<br>
+      tol ∈ {0, 0.01, 0.03}<br>
+      h ∈ {10,20,30,45,90}<br>
+      <span style="color:var(--clay)">↓</span><br>
+      5 × 3 × 5 = <strong style="color:var(--slate)">75 modelos</strong>
+    </div>
+    <table>
+      <thead><tr><th>janela</th><th>tol</th><th>h</th><th>pseudo-R²</th><th>coef</th><th>p-valor</th><th>n_eventos</th></tr></thead>
+      <tbody>
+        <tr class="best"><td>50</td><td>0.01</td><td>30</td><td>0.018</td><td>+0.41</td><td>0.004</td><td>61</td></tr>
+        <tr><td>20</td><td>0.00</td><td>20</td><td>0.009</td><td>+0.22</td><td>0.07</td><td>118</td></tr>
+        <tr><td>200</td><td>0.03</td><td>90</td><td>0.004</td><td>+0.15</td><td>0.31</td><td>14</td></tr>
+        <tr><td>5</td><td>0.00</td><td>10</td><td>0.001</td><td>−0.05</td><td>0.62</td><td>240</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout warn">
+    <span class="lab">Expectativa honesta</span>
+    Como você mesmo disse: <strong>um único indicador não tem valor preditivo real</strong>. Os pseudo-R²
+    vão ser minúsculos — e tudo bem. O valor aqui é o <em>arcabouço</em> limpo e testável que serve de base para o futuro.
+  </div>
+
+  <!-- ───────────────────────── 6 ───────────────────────── -->
+  <h2 id="decisoes">Decisões travadas até aqui</h2>
+  <div class="dec">
+    <div class="k">Alvo & modelos</div><div class="v"><b>Binária 0/1</b> → Logística (pseudo-R²) <b>+</b> contínua <code>ret</code> → OLS (R² clássico)</div>
+    <div class="k">Universo</div><div class="v"><b>Ticker único</b> via yfinance; carga já parametrizada por ticker</div>
+    <div class="k">Dummy independente</div><div class="v"><b>Rompimento</b>: Close cruza a mma hoje, com tolerância</div>
+    <div class="k">Grid de modelos</div><div class="v"><b>Sweep</b>, 1 preditor por modelo agora; estrutura aceita N depois (stepwise)</div>
+    <div class="k">Stack</div><div class="v"><b>statsmodels</b> (p-valores + pseudo-R² limpos) num pacote modular, com testes</div>
+  </div>
+
+  <div class="footer-note">
+    Este HTML é um apoio à decisão — não é o spec. O design definitivo vai para
+    <code>docs/superpowers/specs/</code> e o progresso para <code>planning/PLAN.md</code>.
+    Próximo passo: fechar a Seção 2 (fluxo de dados + definição exata do alvo) e a Seção 3 (testes).
+  </div>
+
+</main>
+
+<aside>
+  <div class="nav-t">Nesta página</div>
+  <a href="#ideia">A ideia em uma frase</a>
+  <a href="#desloc">Deslocamento de datas</a>
+  <a href="#dummy">A dummy de rompimento</a>
+  <a href="#arq">Arquitetura plug-in</a>
+  <a href="#sweep">Sweep → summary</a>
+  <a href="#decisoes">Decisões travadas</a>
+</aside>
+</div>
+
+<script>
+// ---------- Demo 1: deslocamento de datas ----------
+(function () {
+  const svg = document.getElementById('shiftSvg');
+  const W = 720, H = 280, padL = 40, padR = 20, padT = 20, padB = 40;
+  const NS = "http://www.w3.org/2000/svg";
+  // série de preço sintética determinística (sem random p/ reprodutibilidade)
+  const n = 60;
+  const price = [];
+  for (let i = 0; i < n; i++) {
+    const base = 100 + 14 * Math.sin(i / 7) + 0.12 * i + 4 * Math.sin(i / 2.3);
+    price.push(base);
+  }
+  // mma 10
+  const win = 10;
+  const mma = price.map((_, i) => {
+    if (i < win - 1) return null;
+    let s = 0; for (let j = i - win + 1; j <= i; j++) s += price[j];
+    return s / win;
+  });
+  // primeiro cruzamento de baixo p/ cima após estabilizar
+  let tCross = null;
+  for (let i = win; i < n - 30; i++) {
+    if (mma[i] !== null && price[i] > mma[i] && price[i-1] <= mma[i-1]) { tCross = i; break; }
+  }
+  if (tCross === null) tCross = 22;
+
+  const allP = price.concat(mma.filter(v => v !== null));
+  const pMin = Math.min(...allP) - 2, pMax = Math.max(...allP) + 2;
+  const x = i => padL + (W - padL - padR) * (i / (n - 1));
+  const y = v => padT + (H - padT - padB) * (1 - (v - pMin) / (pMax - pMin));
+
+  function line(pts, stroke, w, dash) {
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const el = document.createElementNS(NS, 'path');
+    el.setAttribute('d', d); el.setAttribute('fill', 'none');
+    el.setAttribute('stroke', stroke); el.setAttribute('stroke-width', w);
+    if (dash) el.setAttribute('stroke-dasharray', dash);
+    el.setAttribute('stroke-linejoin', 'round');
+    return el;
+  }
+  function rect(x0, w, fill, op) {
+    const el = document.createElementNS(NS, 'rect');
+    el.setAttribute('x', x0); el.setAttribute('y', padT); el.setAttribute('width', w);
+    el.setAttribute('height', H - padT - padB); el.setAttribute('fill', fill);
+    el.setAttribute('opacity', op); return el;
+  }
+  function circle(cx, cy, r, fill) {
+    const el = document.createElementNS(NS, 'circle');
+    el.setAttribute('cx', cx); el.setAttribute('cy', cy); el.setAttribute('r', r);
+    el.setAttribute('fill', fill); el.setAttribute('stroke', '#fff'); el.setAttribute('stroke-width', 2);
+    return el;
+  }
+  function text(tx, ty, str, fill, anchor, size, mono) {
+    const el = document.createElementNS(NS, 'text');
+    el.setAttribute('x', tx); el.setAttribute('y', ty); el.setAttribute('fill', fill);
+    el.setAttribute('text-anchor', anchor || 'start');
+    el.setAttribute('font-size', size || 11);
+    el.setAttribute('font-family', mono ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
+    el.textContent = str; return el;
+  }
+
+  const hSlider = document.getElementById('hSlider');
+  const hVal = document.getElementById('hVal');
+  const labelPill = document.getElementById('labelPill');
+  const bigPill = document.getElementById('labelPill');
+
+  function render() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const h = parseInt(hSlider.value, 10);
+    hVal.textContent = h + ' d';
+    const tEnd = Math.min(tCross + h, n - 1);
+
+    // janela futura (olive)
+    svg.appendChild(rect(x(tCross), x(tEnd) - x(tCross), '#788C5D', 0.14));
+
+    // baseline da mma
+    const mmaPts = [];
+    for (let i = 0; i < n; i++) if (mma[i] !== null) mmaPts.push([x(i), y(mma[i])]);
+    svg.appendChild(line(mmaPts, '#6A8CAF', 2));
+    // close
+    svg.appendChild(line(price.map((v, i) => [x(i), y(v)]), '#141413', 2));
+
+    // linha vertical no rompimento
+    const vline = document.createElementNS(NS, 'line');
+    vline.setAttribute('x1', x(tCross)); vline.setAttribute('x2', x(tCross));
+    vline.setAttribute('y1', padT); vline.setAttribute('y2', H - padB);
+    vline.setAttribute('stroke', '#D97757'); vline.setAttribute('stroke-width', 1.5);
+    vline.setAttribute('stroke-dasharray', '3 3'); svg.appendChild(vline);
+
+    // pontos t e t+h
+    svg.appendChild(circle(x(tCross), y(price[tCross]), 5.5, '#D97757'));
+    svg.appendChild(circle(x(tEnd), y(price[tEnd]), 5, '#788C5D'));
+
+    // rótulos
+    svg.appendChild(text(x(tCross), H - 22, 't (rompimento)', '#D97757', 'middle', 11, true));
+    svg.appendChild(text(x(tEnd), H - 22, 't+' + h, '#4F7942', 'middle', 11, true));
+    svg.appendChild(text(x(tCross), y(price[tCross]) - 12, 'preditor=1', '#D97757', 'middle', 10, true));
+
+    // decisão de rótulo
+    const up = price[tEnd] > price[tCross];
+    const ret = ((price[tEnd] / price[tCross] - 1) * 100);
+    svg.appendChild(text((x(tCross)+x(tEnd))/2, padT + 14, 'retorno ' + (ret>=0?'+':'') + ret.toFixed(1) + '%', up?'#4F7942':'#B4503C', 'middle', 11, true));
+
+    bigPill.textContent = up ? '1 (subiu)' : '0 (não subiu)';
+    bigPill.className = 'pill ' + (up ? 'pill-1' : 'pill-0');
+  }
+  hSlider.addEventListener('input', render);
+  render();
+})();
+
+// ---------- Demo 2: cruzamento com tolerância ----------
+(function () {
+  const svg = document.getElementById('crossSvg');
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 720, H = 200, padL = 30, padR = 20, padT = 16, padB = 28;
+  const n = 40;
+  const price = [], mma = [];
+  for (let i = 0; i < n; i++) {
+    price.push(100 + 6 * Math.sin(i / 5) + 0.18 * i + 2.2 * Math.sin(i/1.7));
+  }
+  const win = 8;
+  for (let i = 0; i < n; i++) {
+    if (i < win - 1) { mma.push(null); continue; }
+    let s = 0; for (let j = i - win + 1; j <= i; j++) s += price[j];
+    mma.push(s / win);
+  }
+  const tol = 0.01;
+  const allP = price.concat(mma.filter(v => v !== null));
+  const pMin = Math.min(...allP) - 1.5, pMax = Math.max(...allP) + 1.5;
+  const x = i => padL + (W - padL - padR) * (i / (n - 1));
+  const y = v => padT + (H - padT - padB) * (1 - (v - pMin) / (pMax - pMin));
+  function line(pts, stroke, w, dash) {
+    const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const el = document.createElementNS(NS, 'path');
+    el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', stroke);
+    el.setAttribute('stroke-width', w); if (dash) el.setAttribute('stroke-dasharray', dash);
+    el.setAttribute('stroke-linejoin', 'round'); return el;
+  }
+  function text(tx, ty, str, fill, anchor, size, mono) {
+    const el = document.createElementNS(NS, 'text');
+    el.setAttribute('x', tx); el.setAttribute('y', ty); el.setAttribute('fill', fill);
+    el.setAttribute('text-anchor', anchor || 'start'); el.setAttribute('font-size', size || 11);
+    el.setAttribute('font-family', mono ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
+    el.textContent = str; return el;
+  }
+  // banda de tolerância
+  const bandTop = [], bandBot = [];
+  for (let i = 0; i < n; i++) {
+    if (mma[i] === null) continue;
+    bandTop.push([x(i), y(mma[i] * (1 + tol))]);
+    bandBot.push([x(i), y(mma[i] * (1 - tol))]);
+  }
+  const bandPts = bandTop.concat(bandBot.reverse());
+  const band = document.createElementNS(NS, 'path');
+  band.setAttribute('d', bandPts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')+' Z');
+  band.setAttribute('fill', '#6A8CAF'); band.setAttribute('opacity', 0.13);
+  svg.appendChild(band);
+  // mma e close
+  const mmaPts = []; for (let i=0;i<n;i++) if (mma[i]!==null) mmaPts.push([x(i), y(mma[i])]);
+  svg.appendChild(line(mmaPts, '#6A8CAF', 2));
+  svg.appendChild(line(price.map((v,i)=>[x(i),y(v)]), '#141413', 2));
+  // marca cruzamentos válidos (acima da banda, antes abaixo)
+  for (let i = win; i < n; i++) {
+    if (mma[i]===null||mma[i-1]===null) continue;
+    const above = price[i] > mma[i]*(1+tol);
+    const prevAbove = price[i-1] > mma[i-1]*(1+tol);
+    if (above && !prevAbove) {
+      const c = document.createElementNS(NS,'circle');
+      c.setAttribute('cx',x(i)); c.setAttribute('cy',y(price[i])); c.setAttribute('r',5.5);
+      c.setAttribute('fill','#D97757'); c.setAttribute('stroke','#fff'); c.setAttribute('stroke-width',2);
+      svg.appendChild(c);
+      svg.appendChild(text(x(i), y(price[i])-12, 'dummy=1', '#D97757','middle',10,true));
+    }
+  }
+  svg.appendChild(text(padL, H-8, 'banda de tolerância ±1% em volta da mma — só conta como rompimento se cruzar a banda', '#87867F','start',11,false));
+})();
+</script>
+</body>
+</html>

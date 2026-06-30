@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROBUSTA — plano de implementação</title>
+<style>
+  :root {
+    --ivory:#FAF9F5; --slate:#141413; --clay:#D97757; --oat:#E3DACC; --olive:#788C5D;
+    --sky:#6A8CAF; --gray-150:#F0EEE6; --gray-300:#D1CFC5; --gray-500:#87867F; --gray-700:#3D3D3A;
+    --green:#4F7942; --red:#B4503C; --white:#fff;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--ivory); color:var(--gray-700); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; padding:56px 28px 120px; }
+  .page { max-width:1080px; margin:0 auto; }
+  header.head { margin-bottom:40px; max-width:840px; }
+  .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:0.10em; text-transform:uppercase; color:var(--clay); margin-bottom:12px; }
+  h1 { font-family:var(--serif); font-weight:500; font-size:37px; line-height:1.12; color:var(--slate); margin-bottom:16px; letter-spacing:-0.015em; }
+  .lead { font-size:16.5px; max-width:680px; }
+  .prompt-box { background:var(--gray-150); border:1.5px solid var(--gray-300); border-radius:12px; padding:14px 18px; font-size:14px; margin-top:18px; max-width:760px; }
+  .prompt-box .lab { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray-500); display:block; margin-bottom:5px; }
+
+  .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:36px 0 56px; }
+  @media (max-width:780px){ .summary { grid-template-columns:repeat(2,1fr);} }
+  .cell { background:var(--white); border:1.5px solid var(--gray-300); border-radius:12px; padding:16px 18px; }
+  .cell .n { font-family:var(--serif); font-size:30px; color:var(--clay); line-height:1; }
+  .cell .l { font-size:12.5px; color:var(--gray-500); margin-top:6px; }
+
+  section { margin-bottom:60px; }
+  .sec-head { display:flex; align-items:baseline; gap:13px; margin-bottom:6px; }
+  .sec-head .num { font-family:var(--mono); font-size:12px; background:var(--oat); color:var(--slate); padding:3px 9px; border-radius:8px; }
+  .sec-head h2 { font-family:var(--serif); font-weight:500; font-size:25px; color:var(--slate); letter-spacing:-0.01em; }
+  .sec-intro { font-size:14.5px; color:var(--gray-500); max-width:720px; margin:6px 0 22px; }
+
+  .demo { border:1.5px solid var(--gray-300); border-radius:14px; background:var(--white); padding:22px; }
+  .stepper { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .stepper button { appearance:none; border:1.5px solid var(--gray-300); background:var(--gray-150); border-radius:8px; font-family:var(--mono); font-size:11.5px; padding:7px 12px; cursor:pointer; color:var(--gray-700); transition:all .15s; }
+  .stepper button:hover { background:var(--oat); }
+  .stepper button.active { background:var(--clay); color:#fff; border-color:var(--clay); }
+
+  .dfwrap { overflow-x:auto; border:1px solid var(--gray-300); border-radius:10px; }
+  table.df { border-collapse:collapse; font-family:var(--mono); font-size:11.5px; white-space:nowrap; }
+  table.df th, table.df td { padding:6px 10px; border-bottom:1px solid var(--gray-150); border-right:1px solid var(--gray-150); text-align:right; }
+  table.df th { background:var(--gray-150); color:var(--gray-700); font-weight:600; position:sticky; top:0; }
+  table.df td.date, table.df th.date { text-align:left; color:var(--slate); background:#fff; position:sticky; left:0; box-shadow:1px 0 0 var(--gray-300); }
+  .col-ohlcv { color:var(--slate); }
+  .col-target th { background:#E8F0E3; color:var(--green); }
+  .col-target td { color:var(--green); }
+  .col-ind th { background:#EEF3F7; color:var(--sky); }
+  .col-ind td { color:var(--sky); }
+  .col-break th { background:#FBF1ED; color:var(--clay); }
+  .col-break td { color:var(--clay); font-weight:600; }
+  .fade { animation:fade .4s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(4px);} to{opacity:1;} }
+  .caption { font-size:12.5px; color:var(--gray-500); margin-top:12px; }
+
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:8px; }
+  @media (max-width:760px){ .two { grid-template-columns:1fr; } }
+  .outcard { border:1.5px solid var(--gray-300); border-radius:12px; background:var(--white); padding:18px 20px; }
+  .outcard h3 { font-family:var(--mono); font-size:13px; color:var(--slate); margin-bottom:4px; }
+  .outcard .grain { font-size:12px; color:var(--gray-500); margin-bottom:12px; }
+  .outcard.analysis { border-color:var(--sky); }
+  .outcard.summary { border-color:var(--clay); }
+  .minicol { display:flex; flex-wrap:wrap; gap:5px; }
+  .chip { font-family:var(--mono); font-size:10.5px; padding:3px 7px; border-radius:6px; background:var(--gray-150); color:var(--gray-700); }
+  .chip.g { background:#E8F0E3; color:var(--green); }
+  .chip.b { background:#EEF3F7; color:var(--sky); }
+  .chip.k { background:#FBF1ED; color:var(--clay); }
+  table.mini { border-collapse:collapse; width:100%; font-family:var(--mono); font-size:11px; margin-top:8px; }
+  table.mini th, table.mini td { border-bottom:1px solid var(--gray-300); padding:5px 7px; text-align:left; color:var(--gray-700); }
+  table.mini th { font-size:9.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--gray-500); }
+  table.mini tr.best td { background:#FBF3EF; color:var(--slate); }
+
+  /* pipeline of tasks */
+  .tasks { display:grid; grid-template-columns:1fr; gap:10px; }
+  .task { border:1.5px solid var(--gray-300); border-radius:12px; background:var(--white); padding:14px 18px; display:grid; grid-template-columns:38px 1fr auto; gap:14px; align-items:center; }
+  .task .tn { font-family:var(--mono); font-size:13px; font-weight:600; color:#fff; background:var(--slate); width:30px; height:30px; border-radius:8px; display:grid; place-items:center; }
+  .task .body .t { font-family:var(--mono); font-size:13.5px; color:var(--slate); font-weight:600; }
+  .task .body .d { font-size:13px; color:var(--gray-700); margin-top:2px; }
+  .task .body .files { font-family:var(--mono); font-size:11px; color:var(--gray-500); margin-top:4px; }
+  .task .tdd { font-family:var(--mono); font-size:10px; color:var(--gray-500); text-align:right; line-height:1.5; }
+  .task.plug { border-color:var(--clay); border-width:2px; }
+  .task.plug .tn { background:var(--clay); }
+
+  .flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-family:var(--mono); font-size:12px; margin-top:6px; }
+  .flow .mod { border:1.5px solid var(--gray-300); background:var(--white); border-radius:9px; padding:8px 11px; color:var(--slate); }
+  .flow .mod.fix { border-style:dashed; }
+  .flow .mod.plug { border-color:var(--clay); color:var(--clay); }
+  .flow .arr { color:var(--gray-500); }
+
+  .callout { border-left:3px solid var(--sky); background:#EEF3F7; padding:13px 17px; border-radius:0 10px 10px 0; margin:18px 0; font-size:14px; }
+  .callout .lab { font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--sky); display:block; margin-bottom:4px; }
+  .callout.warn { border-left-color:var(--clay); background:#FBF1ED; } .callout.warn .lab { color:var(--clay); }
+
+  .approve { border:2px solid var(--olive); border-radius:14px; background:#F2F5EE; padding:22px 24px; margin-top:40px; }
+  .approve h2 { font-family:var(--serif); font-size:22px; color:var(--slate); margin-bottom:8px; }
+  .approve ul { margin:10px 0 0 18px; font-size:14px; }
+  .approve li { margin-bottom:5px; }
+  code { font-family:var(--mono); font-size:12.5px; background:var(--gray-150); padding:1px 5px; border-radius:4px; color:var(--slate); }
+  strong { color:var(--slate); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="head">
+    <div class="eyebrow">ROBUSTA · REBUILD · PLANO DE IMPLEMENTAÇÃO</div>
+    <h1>O plano, para você revisar e aprovar</h1>
+    <p class="lead">Um pacote Python pequeno e testado que faz backtest de <strong>um indicador técnico</strong>,
+    construindo tudo sobre <strong>um único df-fundação</strong> (vindo do yfinance) ao qual cada etapa
+    <strong>acrescenta colunas</strong> — e que produz <strong>dois .xlsx</strong>: o df por dia (auditoria) e o
+    resumo por modelo (decisão).</p>
+    <div class="prompt-box">
+      <span class="lab">Princípio que você pediu</span>
+      "Todos os cálculos usam o df do yfinance como fundação" + "um df de output com os cálculos por row,
+      organizado em colunas adicionadas à medida que o script avança." → é o eixo central deste plano.
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="cell"><div class="n">7</div><div class="l">tarefas TDD (teste→implementa→commit)</div></div>
+    <div class="cell"><div class="n">1</div><div class="l">df-fundação que acumula colunas</div></div>
+    <div class="cell"><div class="n">2</div><div class="l">saídas: analysis (por dia) + summary (por modelo)</div></div>
+    <div class="cell"><div class="n">75×2</div><div class="l">modelos (5×3×5) × 2 famílias: logit + ols</div></div>
+  </div>
+
+  <!-- 1. FOUNDATION DF -->
+  <section>
+    <div class="sec-head"><span class="num">01</span><h2>O df-fundação, ganhando colunas</h2></div>
+    <p class="sec-intro">Clique em cada etapa para ver as colunas sendo <strong>acrescentadas ao mesmo df</strong>,
+    alinhadas por data — exatamente o que você quer revisar. (Exemplo com 2 janelas e 2 tolerâncias.)</p>
+
+    <div class="demo">
+      <div class="stepper" id="stepper">
+        <button data-step="0" class="active">1 · OHLCV (yfinance)</button>
+        <button data-step="1">+ alvo (target.py)</button>
+        <button data-step="2">+ valor da média (mma)</button>
+        <button data-step="3">+ estado &amp; dummies (mma)</button>
+      </div>
+      <div class="dfwrap"><table class="df" id="dfTable"></table></div>
+      <div class="caption" id="dfCaption"></div>
+    </div>
+
+    <div class="callout">
+      <span class="lab">Por que isso ajuda</span>
+      Você abre <code>output/analysis_mma.xlsx</code> e vê, na mesma linha (um dia): o Close, a média, se estava
+      acima da banda, se houve rompimento, o retorno futuro e o rótulo 0/1. Auditoria direta, como no legado —
+      mas enxuto, porque é <strong>um indicador só</strong> (~45 colunas, não centenas).
+    </div>
+  </section>
+
+  <!-- 2. TWO OUTPUTS -->
+  <section>
+    <div class="sec-head"><span class="num">02</span><h2>As duas saídas</h2></div>
+    <p class="sec-intro">Granularidades diferentes, propósitos diferentes.</p>
+    <div class="two">
+      <div class="outcard analysis">
+        <h3>output/analysis_mma.xlsx</h3>
+        <div class="grain">1 linha por <strong>dia</strong> · auditoria</div>
+        <div class="minicol">
+          <span class="chip">Open</span><span class="chip">High</span><span class="chip">Low</span>
+          <span class="chip">Close</span><span class="chip">Volume</span>
+          <span class="chip g">ret_10d</span><span class="chip g">y_10d</span>
+          <span class="chip g">ret_90d</span><span class="chip g">y_90d</span>
+          <span class="chip b">mma_w20</span><span class="chip k">mma_w20_t0.01_break</span>
+          <span class="chip">…</span>
+        </div>
+      </div>
+      <div class="outcard summary">
+        <h3>output/summary_mma.xlsx</h3>
+        <div class="grain"><strong>2 linhas por modelo</strong> (logit + ols) · decisão</div>
+        <table class="mini">
+          <thead><tr><th>window</th><th>tol</th><th>h</th><th>family</th><th>r2</th><th>p_value</th><th>n_ev</th><th>status</th></tr></thead>
+          <tbody>
+            <tr class="best"><td>50</td><td>0.01</td><td>30</td><td>logit</td><td>0.018*</td><td>0.004</td><td>61</td><td>ok</td></tr>
+            <tr><td>50</td><td>0.01</td><td>30</td><td>ols</td><td>0.011†</td><td>0.006</td><td>61</td><td>ok</td></tr>
+            <tr><td>20</td><td>0.0</td><td>20</td><td>logit</td><td>0.009*</td><td>0.07</td><td>118</td><td>ok</td></tr>
+            <tr><td>200</td><td>0.03</td><td>90</td><td>ols</td><td>—</td><td>—</td><td>3</td><td>sem_eventos</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:10.5px;color:var(--gray-500);margin-top:6px;font-family:var(--mono)">* pseudo-R² (McFadden) · † R² clássico — rankeados em separado</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. MODULE FLOW -->
+  <section>
+    <div class="sec-head"><span class="num">03</span><h2>Como os módulos se ligam</h2></div>
+    <p class="sec-intro">O indicador é um <strong>plug-in</strong>: para testar mme/obv amanhã, troca-se só o módulo do indicador.</p>
+    <div class="flow">
+      <span class="mod">data.py</span><span class="arr">→</span>
+      <span class="mod fix">target.py</span><span class="arr">→</span>
+      <span class="mod plug">indicators/mma.py</span><span class="arr">→</span>
+      <span class="mod">sweep.py</span><span class="arr">→</span>
+      <span class="mod">modeling.py</span><span class="arr">→</span>
+      <span class="mod">run_mma.py</span>
+    </div>
+    <div class="caption">Tracejado = genérico e fixo (independe do indicador). Laranja = o plug-in que você troca.</div>
+  </section>
+
+  <!-- 4. TASKS -->
+  <section>
+    <div class="sec-head"><span class="num">04</span><h2>As 7 tarefas (cada uma: teste → implementa → commit)</h2></div>
+    <p class="sec-intro">Bite-sized e independentes. Cada tarefa termina com um teste verde e um commit.</p>
+    <div class="tasks">
+      <div class="task"><div class="tn">1</div><div class="body"><div class="t">Scaffolding &amp; ambiente</div><div class="d">git init, uv venv, deps, pytest, fixture de preços sintéticos.</div><div class="files">pyproject.toml · requirements.txt · conftest.py</div></div><div class="tdd">smoke<br>test</div></div>
+      <div class="task"><div class="tn">2</div><div class="body"><div class="t">target.py</div><div class="d">Adiciona <code>ret_{h}d</code> (contínuo) + <code>y_{h}d</code> (0/1) ao df. Cauda NA (sem vazamento).</div><div class="files">src/robusta/target.py</div></div><div class="tdd">2 testes</div></div>
+      <div class="task plug"><div class="tn">3</div><div class="body"><div class="t">indicators/mma.py · PLUG-IN</div><div class="d">Acrescenta <code>mma_w*</code>, <code>*_above</code>, <code>*_break</code> ao df. Helpers de nome canônico.</div><div class="files">indicators/base.py · indicators/mma.py</div></div><div class="tdd">2 testes</div></div>
+      <div class="task"><div class="tn">4</div><div class="body"><div class="t">modeling.py</div><div class="d">Duas famílias: <code>fit_logit</code> (y 0/1, pseudo-R²) + <code>fit_ols</code> (ret contínuo, R² clássico). Mesmo schema. Bordas: sem eventos / separação.</div><div class="files">src/robusta/modeling.py</div></div><div class="tdd">3 testes</div></div>
+      <div class="task"><div class="tn">5</div><div class="body"><div class="t">sweep.py</div><div class="d">Acumula colunas no df e devolve <code>(analysis_df, summary_df)</code> ordenado.</div><div class="files">src/robusta/sweep.py</div></div><div class="tdd">2 testes</div></div>
+      <div class="task"><div class="tn">6</div><div class="body"><div class="t">data.py</div><div class="d">Loader yfinance + <code>normalize_ohlcv</code> puro (rede isolada, fora dos testes).</div><div class="files">src/robusta/data.py</div></div><div class="tdd">2 testes</div></div>
+      <div class="task"><div class="tn">7</div><div class="body"><div class="t">run_mma.py</div><div class="d">Ponta a ponta: grava os dois .xlsx. <code>build_summary</code> + <code>write_outputs</code> testáveis sem rede.</div><div class="files">src/robusta/run_mma.py</div></div><div class="tdd">e2e +<br>suite</div></div>
+    </div>
+    <div class="callout warn">
+      <span class="lab">Honesto</span>
+      O repo ainda não é git → a Tarefa 1 faz <code>git init</code> antes dos commits. O ticker default é
+      <code>^BVSP</code> (Ibovespa) — trocável em <code>main()</code>. Pseudo-R² serão minúsculos (um indicador só);
+      o valor é o arcabouço limpo.
+    </div>
+  </section>
+
+  <div class="approve">
+    <h2>Para aprovar</h2>
+    <p>Se este plano reflete o que você quer, é só dizer <strong>"aprovado, execução por subagente"</strong> (ou inline).
+    Antes disso, vale conferir:</p>
+    <ul>
+      <li>O df-fundação acumulando colunas (Seção 1) é o comportamento que você esperava?</li>
+      <li>As duas saídas e suas granularidades (Seção 2) atendem à revisão + decisão?</li>
+      <li>Ticker default <code>^BVSP</code> e os grids (window {5,10,20,50,200}, tol {0, .01, .03}, h {10,20,30,45,90}) estão bons?</li>
+    </ul>
+    <p style="margin-top:10px;font-size:13px;color:var(--gray-500)">Spec: <code>planning/2026-06-29-robusta-rebuild-design.md</code> · Plano: <code>planning/2026-06-29-robusta-rebuild-plan.md</code></p>
+  </div>
+
+</div>
+
+<script>
+// ----- dados sintéticos do df de exemplo (determinístico) -----
+const dates = ["2020-02-03","2020-02-04","2020-02-05","2020-02-06","2020-02-07"];
+const ohlcv = [
+  {Open:101.2, High:102.1, Low:100.8, Close:101.6, Volume:"1.0M"},
+  {Open:101.6, High:102.9, Low:101.3, Close:102.7, Volume:"1.0M"},
+  {Open:102.7, High:103.0, Low:101.1, Close:101.4, Volume:"1.0M"},
+  {Open:101.4, High:102.2, Low:100.5, Close:102.0, Volume:"1.0M"},
+  {Open:102.0, High:103.4, Low:101.9, Close:103.2, Volume:"1.0M"},
+];
+// colunas alvo (target.py)
+const target = [
+  {ret_10d:"+0.021", y_10d:1, ret_20d:"+0.045", y_20d:1},
+  {ret_10d:"-0.008", y_10d:0, ret_20d:"+0.012", y_20d:1},
+  {ret_10d:"+0.014", y_10d:1, ret_20d:"+0.030", y_20d:1},
+  {ret_10d:"+0.006", y_10d:1, ret_20d:"-0.004", y_20d:0},
+  {ret_10d:"—", y_10d:"NA", ret_20d:"—", y_20d:"NA"},
+];
+// valor das médias (depende só da janela)
+const values = [
+  {mma_w5:"101.0", mma_w20:"100.4"},
+  {mma_w5:"101.4", mma_w20:"100.6"},
+  {mma_w5:"101.6", mma_w20:"100.8"},
+  {mma_w5:"101.8", mma_w20:"101.0"},
+  {mma_w5:"102.2", mma_w20:"101.2"},
+];
+// estado + dummies (window×tol)
+const breaks = [
+  {a5:"1", b5:"0", a20:"1", b20:"0"},
+  {a5:"1", b5:"0", a20:"1", b20:"0"},
+  {a5:"0", b5:"0", a20:"1", b20:"0"},
+  {a5:"1", b5:"1", a20:"1", b20:"0"},
+  {a5:"1", b5:"0", a20:"1", b20:"0"},
+];
+
+const captions = [
+  "Etapa 1 — o df-fundação cru, vindo do yfinance: só OHLCV indexado por data.",
+  "Etapa 2 — target.py acrescenta o retorno futuro contínuo (ret) e o rótulo binário (y). Note a cauda NA: as últimas linhas não têm futuro.",
+  "Etapa 3 — o plug-in mma acrescenta o valor da média (uma coluna por janela).",
+  "Etapa 4 — o plug-in acrescenta o estado 'acima da banda' (above) e a dummy de rompimento (break, 1 só no dia do cruzamento). Tudo no MESMO df.",
+];
+
+const tbl = document.getElementById('dfTable');
+const cap = document.getElementById('dfCaption');
+
+function header(cols){
+  // monta o thead a partir de grupos de colunas {label, cls}
+  let h = '<thead><tr><th class="date">Date</th>';
+  cols.forEach(c => h += `<th class="${c.cls||''}">${c.k}</th>`);
+  return h + '</tr></thead>';
+}
+function body(cols){
+  let b = '<tbody>';
+  for(let i=0;i<dates.length;i++){
+    b += `<tr class="fade"><td class="date">${dates[i]}</td>`;
+    cols.forEach(c => b += `<td class="${c.tdcls||''}">${c.get(i)}</td>`);
+    b += '</tr>';
+  }
+  return b + '</tbody>';
+}
+
+function colsFor(step){
+  // sempre OHLCV
+  let cols = ["Open","High","Low","Close","Volume"].map(k => ({k, cls:'', tdcls:'col-ohlcv', get:i=>ohlcv[i][k]}));
+  if(step>=1){
+    [["ret_10d"],["y_10d"],["ret_20d"],["y_20d"]].forEach(([k]) =>
+      cols.push({k, cls:'col-target', tdcls:'col-target', get:i=>target[i][k]}));
+  }
+  if(step>=2){
+    ["mma_w5","mma_w20"].forEach(k =>
+      cols.push({k, cls:'col-ind', tdcls:'col-ind', get:i=>values[i][k]}));
+  }
+  if(step>=3){
+    cols.push({k:"…_above", cls:'col-ind', tdcls:'col-ind', get:i=>breaks[i].a5});
+    cols.push({k:"w5_t0.0_break", cls:'col-break', tdcls:'col-break', get:i=>breaks[i].b5});
+    cols.push({k:"w20_t0.01_break", cls:'col-break', tdcls:'col-break', get:i=>breaks[i].b20});
+  }
+  return cols;
+}
+// agrupa header por classe para colorir blocos: usamos a cls nas th
+function render(step){
+  const cols = colsFor(step);
+  tbl.innerHTML = header(cols) + body(cols);
+  cap.textContent = captions[step];
+}
+document.querySelectorAll('#stepper button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#stepper button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    render(parseInt(btn.dataset.step,10));
+  });
+});
+render(0);
+</script>
+</body>
+</html>
