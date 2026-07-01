@@ -15,6 +15,7 @@
 - **Duas famílias de modelo por sweep:** Logística sobre `y_{h}d` (0/1, pseudo-R² McFadden) **e** OLS sobre `ret_{h}d` (contínuo, R² clássico). Summary em formato longo com coluna `family`.
 - **Seleção de variáveis** (stepwise/Lasso/SFS dos notebooks) é **futuro** — precisa de multi-preditor.
 - **Associação 2×2 (complementar):** nas linhas `logit`, o summary traz `odds_ratio`, `lift` e `fisher_p` (tabela rompimento × alta) — à prova de falha, e `odds_ratio` ≈ `exp(coef)`. NaN nas linhas `ols`.
+- **Persistência do rompimento (`persist_k`) (2026-06-30):** nova dummy = rompeu **e** ficou `above` por mais `k` dias. Decisões travadas: (1) **ancoragem no dia da confirmação** (o k-ésimo dia após o rompimento) — usa só passado/presente, **sem vazamento** para o alvo; (2) **contagem**: `persist3` = rompimento + 3 dias acima = `streak==4`; `persist4` = rompimento + 4 = `streak==5`; (3) **one-shot** (um único 1 por rompimento, `streak == k+1`), não estado contínuo como no legado. Vira parâmetro `persist` do `mma` (`0` = rompimento puro), mais uma dimensão do grid; `sweep.py` não muda. Não é indicador novo.
 - **Ticker único** via `yfinance`; carga parametrizada por ticker/período.
 - Variável independente = **dummy de rompimento** (Close cruza a mma hoje, com tolerância).
 - **Sweep** de parâmetros, 1 preditor por modelo agora; `fit_logit` aceita N preditores (stepwise futuro).
@@ -45,6 +46,15 @@ Inclui as lacunas ALTA/MÉDIA de `TESTES.md` dobradas nos testes de cada fase.
 **Parâmetros ajustáveis:** todos centralizados em `src/robusta/config.py` (ticker, period, janelas da mma, tolerâncias, horizontes, min_events, pasta de saída). Edite lá — nenhum outro código precisa mudar.
 
 **Rodar o pipeline real:** `PYTHONPATH=src uv run python -m robusta.run_mma` (PowerShell: `$env:PYTHONPATH="src"; uv run python -m robusta.run_mma`).
+
+## Fase 2 — Persistência do rompimento (`persist_k`)
+
+Concluída em 2026-06-30 — **38 testes passando** (`uv run pytest`); e2e verificado em `^BVSP` (2483 dias, **216 modelos**). Detalhe das tarefas em `planning/2026-06-29-robusta-rebuild-plan.md` (Task 8). TDD, 1 commit.
+
+- [x] Dummy `persist_k` no `mma.py` (`signal_col`/`add_columns` ganham `persist`; one-shot na confirmação, `streak == k+1`).
+- [x] `config.PERSISTENCES = [0, 3, 4]` (0 = rompimento puro).
+- [x] Grid `{window, tol, persist}` em `run_mma` (sweep inalterado); coluna `persist` no summary + linha no `dicionário`.
+- [x] Testes (mma, config, e2e) verdes. Grid: 4×3×3×3×2 = **216 linhas** de summary.
 
 ## Itens futuros (fora desta fase)
 

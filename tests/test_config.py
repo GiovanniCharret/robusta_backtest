@@ -15,9 +15,11 @@ def test_config_is_wellformed():
     # Fase 1: ticker e period são strings não-vazias.
     assert isinstance(config.TICKER, str) and config.TICKER
     assert isinstance(config.PERIOD, str) and config.PERIOD
-    # Fase 2: os três grids são listas não-vazias.
-    for grid in (config.MMA_WINDOWS, config.TOLERANCES, config.HORIZONS):
+    # Fase 2: os quatro grids são listas não-vazias.
+    for grid in (config.MMA_WINDOWS, config.TOLERANCES, config.HORIZONS, config.PERSISTENCES):
         assert isinstance(grid, list) and len(grid) >= 1
+    # Fase 2: persistências incluem 0 (o rompimento puro) — comportamento base preservado.
+    assert 0 in config.PERSISTENCES
     # Fase 3: min_events é inteiro >= 1 e a pasta de saída é string não-vazia.
     assert isinstance(config.MIN_EVENTS, int) and config.MIN_EVENTS >= 1
     assert isinstance(config.OUTPUT_DIR, str) and config.OUTPUT_DIR
@@ -27,7 +29,7 @@ def test_config_is_wellformed():
 def test_config_grids_drive_build_summary(synthetic_prices):
     """
     Por quê: garantir que os grids do config são válidos e atravessam o pipeline —
-    nº de linhas = |windows|×|tols|×|horizons|×2 famílias.
+    nº de linhas = |windows|×|tols|×|persists|×|horizons|×2 famílias.
 
     Lógica: Entrada (config + preços sintéticos) → Fase 1 build_summary → Fase 2 contagem.
     """
@@ -37,8 +39,12 @@ def test_config_grids_drive_build_summary(synthetic_prices):
         windows=config.MMA_WINDOWS,
         tols=config.TOLERANCES,
         horizons=config.HORIZONS,
+        persists=config.PERSISTENCES,
         min_events=config.MIN_EVENTS,
     )
     # Fase 2/Saída: contagem bate com o produto do grid × 2 famílias.
-    esperado = len(config.MMA_WINDOWS) * len(config.TOLERANCES) * len(config.HORIZONS) * 2
+    esperado = (
+        len(config.MMA_WINDOWS) * len(config.TOLERANCES)
+        * len(config.PERSISTENCES) * len(config.HORIZONS) * 2
+    )
     assert len(summary) == esperado

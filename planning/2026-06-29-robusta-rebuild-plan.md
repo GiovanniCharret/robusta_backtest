@@ -1230,6 +1230,27 @@ Expected: prints the save message; `output/analysis_mma.xlsx` (per-day, ~50 colu
 
 ---
 
+### Task 8: `persist_k` — dummy de persistência do rompimento (extensão do `mma`)
+
+Nova dummy derivada do `above`/`break`, parametrizada por `persist` (0 = rompimento puro; `k>0` =
+rompeu e ficou `above` por mais `k` dias, carimbado **one-shot no dia da confirmação** → sem
+vazamento). `persist3` = `streak==4`; `persist4` = `streak==5`. Vira mais uma dimensão do grid.
+
+- [ ] **RED** — `tests/test_mma.py`: (a) `signal_col(window, tol, persist=3)` → `mma_w{w}_t{tol}_persist3`;
+  (b) `add_columns(..., persist=3)` acende `persist3` **só** na confirmação de um `above` montado à mão
+  (`[0,1,1,1,1,0]` → 1 em d4, 0 no resto) e `persist4` não acende; (c) `persist=0`/omitido mantém a
+  dummy `break` idêntica (regressão).
+- [ ] **GREEN** — `src/robusta/indicators/mma.py`: estender `signal_col`/`add_columns` com `persist`.
+  Fórmula: `streak = above.groupby((above != above.shift()).cumsum()).cumcount() + 1`;
+  `persist = (above & (streak == persist + 1)).astype("Int8")`.
+- [ ] **Config** — `src/robusta/config.py`: `PERSISTENCES = [0, 3, 4]` + teste em `tests/test_config.py`.
+- [ ] **Grid** — `run_mma.build_summary`/`main`: passar `persists=config.PERSISTENCES`; grid vira
+  `{window, tol, persist}` (o `sweep.py` não muda). Teste e2e: summary tem coluna `persist` e linhas de persistência.
+- [ ] **Dicionário** — `summary_dictionary()`: 1 linha nova para `persist`.
+- [ ] **Verify** — `uv run pytest` verde; e2e opcional. Grid passa a 4×3×**3**×3×2 = **216 linhas**.
+
+---
+
 ## Done When
 - `uv run pytest -v` is green across all modules.
 - `python -m robusta.run_mma` produces BOTH `output/analysis_mma.xlsx` (per-day foundation df) and `output/summary_mma.xlsx` (per-model) — manual, networked check.

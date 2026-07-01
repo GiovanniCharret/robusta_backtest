@@ -12,22 +12,23 @@ from robusta import config
 
 
 # Orquestração pura: de um df de preços às duas saídas (sem rede).
-def build_summary(prices: pd.DataFrame, *, windows, tols, horizons, min_events: int = 5):
+def build_summary(prices: pd.DataFrame, *, windows, tols, horizons, persists=(0,), min_events: int = 5):
     """
     Por quê: separar a orquestração (testável, sem rede) do I/O (main). Recebe um
     df já carregado para que o teste e2e injete preços sintéticos.
 
     Lógica (Entrada → Saída):
-      Entrada: df OHLCV + listas de janelas, tolerâncias e horizontes.
+      Entrada: df OHLCV + listas de janelas, tolerâncias, horizontes e persistências
+        (persist=0 = rompimento puro; k>0 = rompeu e ficou k dias acima).
       Fase 1: cria os rótulos ret_{h}d/y_{h}d no df-fundação.
-      Fase 2: monta o grid de parâmetros do mma.
+      Fase 2: monta o grid de parâmetros do mma (janela × tolerância × persistência).
       Fase 3: roda o sweep com o módulo mma (acumula colunas + resume).
       Saída: (analysis_df, summary_df).
     """
     # Fase 1: anexa as colunas-alvo para todos os horizontes.
     labeled = add_labels(prices, horizons=horizons)
-    # Fase 2: grid de parâmetros do indicador.
-    grid = {"window": windows, "tol": tols}
+    # Fase 2: grid de parâmetros do indicador (persist é só mais uma dimensão).
+    grid = {"window": windows, "tol": tols, "persist": list(persists)}
     # Fase 3/Saída: executa o sweep injetando o módulo plug-in mma.
     return run_sweep(labeled, mma, grid, horizons, min_events=min_events)
 
@@ -49,6 +50,7 @@ def summary_dictionary() -> pd.DataFrame:
         {"coluna": "indicator", "grupo": "identificação", "significado": "Indicador técnico testado", "como_ler": "Hoje só 'mma' (média móvel simples)."},
         {"coluna": "window", "grupo": "identificação", "significado": "Janela da média móvel, em dias", "como_ler": "5, 10, 20, 50, 200."},
         {"coluna": "tol", "grupo": "identificação", "significado": "Tolerância do rompimento (fração acima da média p/ contar como evento)", "como_ler": "0 = toca a média; 0.01 = 1%; 0.03 = 3%."},
+        {"coluna": "persist", "grupo": "identificação", "significado": "Persistência do rompimento (dias mantendo-se acima após romper)", "como_ler": "0 = rompimento puro; 3 = rompeu + 3 dias acima; 4 = rompeu + 4 dias. Marcado 1x, no dia da confirmação (sem vazamento)."},
         {"coluna": "horizon", "grupo": "identificação", "significado": "Dias à frente que o alvo olha", "como_ler": "10, 20, 30, 45, 90."},
         {"coluna": "family", "grupo": "identificação", "significado": "Pergunta que o modelo responde", "como_ler": "logit = 'subiu? (0/1)'; ols = 'quanto rendeu? (% contínuo)'."},
         # --- amostra: quanto dado entrou ---
@@ -125,6 +127,8 @@ def main(ticker: str = config.TICKER, period: str = config.PERIOD) -> None:
         tols=config.TOLERANCES,
         # Horizontes do alvo (config.HORIZONS).
         horizons=config.HORIZONS,
+        # Persistências do rompimento (config.PERSISTENCES; 0 = rompimento puro).
+        persists=config.PERSISTENCES,
         # Mínimo de eventos por modelo (config.MIN_EVENTS).
         min_events=config.MIN_EVENTS,
     )

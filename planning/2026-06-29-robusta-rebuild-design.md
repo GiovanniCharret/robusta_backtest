@@ -40,6 +40,7 @@ serão minúsculos — e tudo bem. O valor entregue é o arcabouço, não a perf
 | Métricas de comparação | `r2` (McFadden pseudo p/ logística; R² clássico p/ OLS), `coef`, `p_value`, `llf`, `accuracy` (só logística) |
 | Universo | **Ticker único** via `yfinance`; carga parametrizada por ticker/período |
 | Dummy independente | **Rompimento**: Close cruza a mma de baixo p/ cima, com tolerância |
+| Persistência (nova dummy) | **`persist_k`**: rompeu e ficou `above` por mais `k` dias; carimbado no **dia da confirmação** (one-shot, sem vazamento). `k ∈ {3, 4}`; `persist=0` = rompimento puro |
 | Grid de modelos | **Sweep**, 1 preditor por modelo agora; `fit` aceita N preditores depois |
 | Fundação | **Um df-fundação** (OHLCV do yfinance) ao qual todos os cálculos **adicionam colunas** |
 | Saídas | **Dois** `.xlsx`: `analysis_<ind>.xlsx` (1 linha/dia) e `summary_<ind>.xlsx` (1 linha/modelo) |
@@ -76,6 +77,25 @@ mma_w{window}_t{tol}_break   = above & ~above.shift(1)                   # event
 - `window` default sweep: `[5, 10, 20, 50, 200]`; `tol` default sweep: `[0.0, 0.01, 0.03]`.
 - Com 5 janelas × 3 tolerâncias o df-fundação ganha ~5 colunas de média + ~30 de above/break + 10 de
   rótulo/retorno ⇒ **~45 colunas, leve e revisável** (continua sendo um indicador só).
+
+### 4a. Persistência do rompimento (`persist_k`)
+
+Sinal derivado do `above`/`break` (não é indicador novo). Parametrizado por `persist` (0 = rompimento
+puro; `k>0` = persistência de `k` dias). Quando `persist=k`, **uma coluna extra é adicionada**:
+
+```
+streak                          = nº de dias consecutivos com above=1 terminando em t
+mma_w{window}_t{tol}_persist{k} = 1 sse above[t]=1 E streak[t] == k+1    # rompeu + ficou k dias acima
+```
+
+- **Ancoragem no dia da confirmação** (o k-ésimo dia após o rompimento): usa só passado/presente ⇒
+  **sem vazamento** para o alvo (que passa a olhar o futuro a partir desse dia). Espelha o
+  `where(streak >= k)` do legado, mas **one-shot** (`== k+1`, um único 1 por rompimento).
+- Contagem: `persist3` = rompimento + 3 dias acima = **4** dias `above` seguidos (`streak==4`);
+  `persist4` = rompimento + 4 dias = **5** seguidos (`streak==5`).
+- Eventos de persistência são **mais raros** que rompimentos ⇒ mais combos caem em `sem_eventos`
+  (esperado; `MIN_EVENTS` cobre).
+- `persist` default sweep: `[0, 3, 4]`.
 
 ## 5. Arquitetura (módulos isolados)
 

@@ -22,6 +22,9 @@ PERIOD = "10y"
 MMA_WINDOWS = [10, 26, 50, 200]
 # Tolerâncias do rompimento (fração acima da média): 0.0 = toca; 0.01 = 1%; 0.03 = 3%.
 TOLERANCES = [0.0, 0.015, 0.03]
+# Persistências do rompimento (dias mantendo-se acima após romper): 0 = rompimento puro;
+# 3 = rompeu + 3 dias acima; 4 = rompeu + 4 dias acima. Carimbadas no dia da confirmação (one-shot).
+PERSISTENCES = [0, 3, 4]
 
 # === Alvo (variável dependente) ===
 # Horizontes (dias à frente) que o alvo olha — a "daylist".
