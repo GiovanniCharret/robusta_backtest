@@ -6,6 +6,7 @@
 ## Documentos
 
 - **Design (spec):** `planning/2026-06-29-robusta-rebuild-design.md`
+- **Design Fase 3 (multi-indicador):** `planning/2026-07-01-multi-indicator-design.md`
 - **Plano de implementação:** `planning/2026-06-29-robusta-rebuild-plan.md`
 - **Apoio visual:** `planning/robusta-design-explainer.html` e `planning/robusta-plan-explainer.html`
 - **Mapa de testes:** `planning/TESTES.md` (cobertura das 7 fases + lacunas priorizadas)
@@ -55,6 +56,19 @@ Concluída em 2026-06-30 — **38 testes passando** (`uv run pytest`); e2e verif
 - [x] `config.PERSISTENCES = [0, 3, 4]` (0 = rompimento puro).
 - [x] Grid `{window, tol, persist}` em `run_mma` (sweep inalterado); coluna `persist` no summary + linha no `dicionário`.
 - [x] Testes (mma, config, e2e) verdes. Grid: 4×3×3×3×2 = **216 linhas** de summary.
+
+## Fase 3 — Multi-indicador + summary unificado (planejamento)
+
+Spec aprovado em 2026-07-01: `planning/2026-07-01-multi-indicator-design.md`. Decisões travadas:
+onset bullish como dummy (estado→transição); só bullish nesta passada; ranking do master por
+**lift (logit) / coef (ols)**; **um módulo por indicador** (isolamento, duplicação aceita); config
+com `INDICATORS` + `PARAM_GRIDS`. Roster (9 novos + mma): `mme, obv, vwap, alto_volume, exaustao_atr,
+rsi, macd, donchian, bollinger`. Saídas: par por indicador + `summary_ALL.xlsx` (rankeável).
+
+- [ ] Spec revisado pelo usuário → escrever plano de implementação (writing-plans).
+- [ ] `runner.py` genérico + `run_all.py` (baixa preços 1×, itera roster, gera master).
+- [ ] 9 módulos de indicador (cópia do padrão `mma`) + testes TDD por módulo.
+- [ ] `config.INDICATORS` / `config.PARAM_GRIDS` + fixture `synthetic_prices_volume`.
 
 ## Itens futuros (fora desta fase)
 
