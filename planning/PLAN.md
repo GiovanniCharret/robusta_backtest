@@ -91,6 +91,27 @@ estritamente menor que o `persist=0` do mesmo combo (sanidade do subconjunto con
 - [x] 9 módulos de indicador (cópia do padrão `mma`) + testes TDD por módulo.
 - [x] `config.INDICATORS` / `config.PARAM_GRIDS` + fixture `synthetic_prices_volume`.
 
+## Backlog do review final da Fase 3 (2026-07-11)
+
+Review de branch inteira (18 commits): pronto para merge, zero achados Critical/Important.
+Itens de backlog, por relevância:
+
+- [f] **Artefato de onset no warm-up** (todos os 10 módulos; pior no `rsi`): o 1º dia em que o
+  estado fica válido-e-True após o warm-up de NaN dispara um onset "fantasma" (comparação com NaN
+  vira False). No rsi (estado = RSI≥30, verdadeiro na maioria dos dias) isso ~garante 1 evento
+  espúrio por série, inflando `n_eventos`. É semântica herdada da Fase 1 (decisão do plano, não
+  bug). Corrigir nos 10 módulos de uma vez (ex.: mascarar onset quando o valor em t−1 é NaN),
+  de preferência junto com a validação out-of-sample.
+- [f] **Assimetria de baseline entre os 2 módulos de evento** (prescrita pelo plano): `exaustao_atr`
+  compara com o ATR de ONTEM (`shift(1)`); `alto_volume` compara com média que INCLUI o próprio dia
+  (pico dilui a si mesmo em 1/20). Não é vazamento (info ≤ t). Decidir: simetrizar
+  (`vol_ma.shift(1)`) ou documentar como intencional no design doc.
+- [f] Higiene menor: comentário órfão em `tests/test_run_all.py` + guarda `assert notna` no teste de
+  ranking; comentário desatualizado no topo de `run_mma.py`; `filterwarnings` nos 2 testes de borda
+  do `test_modeling.py` (3 warnings pré-existentes da Fase 1); nomes antigos "break/above" em nomes
+  de testes do `test_mma.py`; injetar 1 pico de volume na fixture `synthetic_prices_volume` para os
+  2 testes genéricos de av/ea deixarem de passar com 0 eventos (decisão de 2026-07-11 mantida).
+
 ## Itens futuros (fora desta fase)
 
 - [f] Validação out-of-sample (split temporal / walk-forward).
