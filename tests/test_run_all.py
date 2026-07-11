@@ -1,7 +1,7 @@
 # pandas para reler os arquivos e checar ordenação.
 import pandas as pd
-# O entrypoint consolidado sob teste (função pura run_all + master).
-from robusta.run_all import run_all, build_master
+# O entrypoint consolidado sob teste (funções puras run_all/run_all_multi + master).
+from robusta.run_all import run_all, build_master, run_all_multi
 
 
 # Teste: run_all roda um roster pequeno, grava um par por indicador e o master.
@@ -54,3 +54,32 @@ def test_master_ranked_by_family_key(synthetic_prices_volume):
         assert notna == sorted(notna, reverse=True)
         nan_flags = [v == v for v in vals]  # True antes de False (na_position=last)
         assert nan_flags == sorted(nan_flags, reverse=True)
+
+
+# Fase 4: o modo multi-ticker gera UM master com coluna `ticker` e nenhum par por indicador.
+def test_run_all_multi_master_has_ticker_and_only_master_file(synthetic_prices_volume, tmp_path):
+    """
+    Por quê: com ~70 tickers, gravar 21 arquivos por ticker é inviável — o modo
+    multi grava só o summary_ALL, com a coluna `ticker` na frente para permitir
+    comparar o MESMO indicador entre tickers.
+
+    Lógica: Entrada (2 tickers sintéticos + roster mínimo) → Fase 1 run_all_multi
+    → Fase 2 master (ticker 1ª coluna, 2 tickers, contagem) → Fase 3 disco (1 só
+    arquivo) → Fase 4 dicionário cobre `ticker` → Saída.
+    """
+    # Entrada: dois "tickers" com os mesmos preços sintéticos (grid mínimo do obv).
+    pares = [("AAA", synthetic_prices_volume), ("BBB", synthetic_prices_volume.copy())]
+    grids = {"obv": {"window": [20], "persist": [0]}}
+    # Fase 1: roda o modo multi em tmp.
+    master = run_all_multi(pares, ["obv"], grids, [10, 20], min_events=1, outdir=tmp_path)
+    # Fase 2: `ticker` é a PRIMEIRA coluna e traz os dois nomes.
+    assert list(master.columns)[0] == "ticker"
+    assert set(master["ticker"]) == {"AAA", "BBB"}
+    # Fase 2: 1 combo × 2 horizontes × 2 famílias × 2 tickers = 8 linhas.
+    assert len(master) == 8
+    # Fase 3: em disco existe SÓ o master (nenhum analysis_/summary_ por indicador).
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["summary_ALL.xlsx"]
+    # Fase 4: a legenda do master cobre a coluna `ticker`.
+    dic = pd.read_excel(tmp_path / "summary_ALL.xlsx", sheet_name="dicionário")
+    # Saída: uma linha do dicionário por coluna, incluindo `ticker`.
+    assert "ticker" in set(dic["coluna"])

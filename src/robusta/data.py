@@ -33,6 +33,25 @@ def normalize_ohlcv(raw: pd.DataFrame) -> pd.DataFrame:
     return ordered[cols]
 
 
+# Lê a lista de tickers líquidos de uma planilha local (coluna `tickers`).
+def load_tickers(path) -> list[str]:
+    """
+    Por quê: o modo multi-ticker itera uma lista mantida à mão numa planilha
+    (src/entrada/); centralizar a leitura aqui mantém TODO o I/O de dados
+    (rede e arquivos locais) neste módulo, deixando o resto do pipeline puro.
+
+    Lógica (Entrada → Saída):
+      Entrada: caminho de um .xlsx com a coluna `tickers` (nomes SEM sufixo, ex.: PETR4).
+      Fase 1: lê a planilha.
+      Fase 2: descarta células vazias e apara espaços, preservando a ordem.
+      Saída: lista de strings na ordem da planilha.
+    """
+    # Fase 1: lê a planilha (engine openpyxl, a mesma usada na escrita das saídas).
+    df = pd.read_excel(path)
+    # Fase 2/Saída: sem NaN, como str e sem espaços nas pontas, na ordem original.
+    return [str(t).strip() for t in df["tickers"].dropna()]
+
+
 # Baixa os preços de um ticker e devolve o df-fundação OHLCV normalizado.
 def load_prices(ticker: str, period: str = "10y") -> pd.DataFrame:
     """

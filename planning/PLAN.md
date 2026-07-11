@@ -93,6 +93,25 @@ estritamente menor que o `persist=0` do mesmo combo (sanidade do subconjunto con
 - [x] 9 módulos de indicador (cópia do padrão `mma`) + testes TDD por módulo.
 - [x] `config.INDICATORS` / `config.PARAM_GRIDS` + fixture `synthetic_prices_volume`.
 
+## Fase 4 — Painel multi-ticker (B3)
+
+Concluída em 2026-07-11 (atividade pequena, sem plano formal — decisões na conversa):
+
+- [x] Flag `config.MULTI_TICKER` (False = ticker único, comportamento original com 21 arquivos;
+      True = lista da B3). Lista lida de `config.TICKERS_FILE` (`src/entrada/tickers_liquidos.xlsx`,
+      coluna `tickers`, 70 tickers SEM sufixo) via `data.load_tickers`; sufixo do yfinance
+      (`config.TICKER_SUFFIX = ".SA"`) aplicado só no download; a coluna `ticker` do master guarda
+      o nome limpo (PETR4).
+- [x] `run_all.run_all_multi` (pura, testável): varre (ticker × 10 indicadores), carimba a coluna
+      `ticker` (1ª coluna) e grava **SÓ** o `summary_ALL.xlsx` único (~90 mil linhas com 70 tickers)
+      — sem os pares por indicador (decisão: 70×21 ≈ 1.470 arquivos seria inviável). Entrada
+      `ticker` no `dicionário`.
+- [x] Falha de download (ex.: deslistado como NATU3) **pula o ticker**, registra no console e
+      lista os pulados ao final — o run não morre por 1 ticker.
+- [x] `OUTPUT_DIR` movido para `src/output/` (ao lado de `src/entrada/`); o `.gitignore`
+      (`output/`) já cobre o novo caminho.
+- [x] Testes: 101 passando (`load_tickers` + `run_all_multi` novos; `test_config` estendido).
+
 ## Backlog do review final da Fase 3 (2026-07-11)
 
 Review de branch inteira (18 commits): pronto para merge, zero achados Critical/Important.

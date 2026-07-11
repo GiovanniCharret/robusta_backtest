@@ -2,8 +2,8 @@
 import pandas as pd
 # pytest para checar a exceção.
 import pytest
-# Só o helper puro é testado (load_prices usa rede e fica de fora).
-from robusta.data import normalize_ohlcv
+# Só os helpers sem rede são testados (load_prices usa rede e fica de fora).
+from robusta.data import normalize_ohlcv, load_tickers
 
 
 # Teste: normaliza colunas e ordena o índice.
@@ -62,3 +62,21 @@ def test_normalize_keeps_only_present_ohlcv():
     out = normalize_ohlcv(raw)
     # Fase 2/Saída: mantém só as OHLCV presentes, na ordem canônica.
     assert list(out.columns) == ["High", "Close"]
+
+
+# Fase 4 (multi-ticker): a lista de tickers vem de uma planilha local (sem rede).
+def test_load_tickers_reads_xlsx_column(tmp_path):
+    """
+    Por quê: o modo multi-ticker itera a lista mantida à mão em src/entrada;
+    o loader precisa ler a coluna `tickers`, descartar vazios e aparar espaços,
+    preservando a ordem da planilha.
+
+    Lógica: Entrada (xlsx com sujeira) → Fase 1 load_tickers → Fase 2 lista limpa → Saída.
+    """
+    # Entrada: planilha com um espaço extra e uma célula vazia no meio.
+    f = tmp_path / "tickers.xlsx"
+    pd.DataFrame({"tickers": ["VALE3 ", None, "PETR4", "BOVA11"]}).to_excel(f, index=False)
+    # Fase 1: lê a lista.
+    out = load_tickers(f)
+    # Fase 2/Saída: vazios fora, espaços aparados, ordem preservada.
+    assert out == ["VALE3", "PETR4", "BOVA11"]

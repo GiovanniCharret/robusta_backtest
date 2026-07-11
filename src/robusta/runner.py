@@ -11,6 +11,7 @@ from robusta.sweep import run_sweep
 # Legenda por coluna: grupo + significado + como ler. Cobre métricas fixas E params de todos os indicadores.
 _COLUMN_DESC = {
     # --- identificação comum ---
+    "ticker": ("identificação", "Ticker do ativo (modo multi-ticker)", "Nome B3 sem sufixo (ex.: PETR4). Presente só quando o run varre a lista de tickers."),
     "indicator": ("identificação", "Indicador técnico testado", "mma, mme, obv, vwap, rsi, macd, donchian, bollinger, alto_volume, exaustao_atr."),
     "horizon": ("identificação", "Dias à frente que o alvo olha", "Ex.: 20, 45, 90."),
     "family": ("identificação", "Pergunta que o modelo responde", "logit = 'subiu? (0/1)'; ols = 'quanto rendeu? (% contínuo)'."),

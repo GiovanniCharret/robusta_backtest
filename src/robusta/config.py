@@ -12,10 +12,17 @@ Lógica: não há execução; é só dados (constantes), agrupados por etapa do 
 """
 
 # === Dados (yfinance) ===
-# Ticker do ativo a baixar (ex.: "^BVSP" Ibovespa, "PETR4.SA", "AAPL", "^GSPC").
+# Ticker do ativo no modo TICKER ÚNICO (ex.: "^BVSP" Ibovespa, "PETR4.SA", "AAPL").
 TICKER = "^BVSP"
 # Janela RELATIVA de histórico, até hoje (ex.: "5y", "10y", "max").
 PERIOD = "10y"
+# Flag do modo de execução: False = só TICKER acima (grava os 21 arquivos);
+# True = itera a lista de TICKERS_FILE e grava SÓ o summary_ALL (com coluna ticker).
+MULTI_TICKER = True
+# Planilha com a lista de tickers líquidos da B3 (coluna `tickers`, nomes SEM sufixo).
+TICKERS_FILE = "src/entrada/tickers_liquidos.xlsx"
+# Sufixo do yfinance para tickers da B3 (PETR4 -> PETR4.SA); aplicado só no modo multi.
+TICKER_SUFFIX = ".SA"
 
 # === Indicadores (compartilhado) ===
 # Persistências do onset (dias mantendo o ESTADO após o onset): 0 = onset puro;
@@ -32,8 +39,8 @@ HORIZONS = [20, 45, 90]
 MIN_EVENTS = 5
 
 # === Saída ===
-# Pasta onde os arquivos .xlsx são gravados.
-OUTPUT_DIR = "output"
+# Pasta onde os arquivos .xlsx são gravados (dentro de src/, ao lado de src/entrada/).
+OUTPUT_DIR = "src/output"
 
 # === Roster multi-indicador (run_all) ===
 # Nomes dos módulos em src/robusta/indicators/ a rodar no run_all.

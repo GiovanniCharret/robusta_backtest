@@ -1,3 +1,5 @@
+# Path para checar a existência da planilha de tickers.
+from pathlib import Path
 # O módulo de configuração centralizada sob teste.
 from robusta import config
 # A orquestração pura genérica, para provar que os grids do config alimentam o pipeline.
@@ -25,6 +27,10 @@ def test_config_is_wellformed():
     # Fase 3: min_events é inteiro >= 1 e a pasta de saída é string não-vazia.
     assert isinstance(config.MIN_EVENTS, int) and config.MIN_EVENTS >= 1
     assert isinstance(config.OUTPUT_DIR, str) and config.OUTPUT_DIR
+    # Fase 4 (multi-ticker): flag booleana, planilha da lista existente e sufixo string.
+    assert isinstance(config.MULTI_TICKER, bool)
+    assert isinstance(config.TICKERS_FILE, str) and Path(config.TICKERS_FILE).exists()
+    assert isinstance(config.TICKER_SUFFIX, str)
 
 
 # Teste: o grid do config gera o nº esperado de modelos (integração, sem rede).
