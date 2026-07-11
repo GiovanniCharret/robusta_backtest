@@ -62,7 +62,7 @@ def add_columns(df: pd.DataFrame, window: int, tol: float = 0.0, persist: int = 
     df[f"mma_w{window}_t{tol}_state"] = above.astype("Int8")
     # Fase 3: cruzamento = acima hoje E não-acima ontem (shift preenche o 1º dia como False).
     cross = above & ~above.shift(1, fill_value=False)
-    # Fase 3: grava a dummy de evento (coluna *_break) como Int8.
+    # Fase 3: grava a dummy de evento (coluna *_signal) como Int8.
     df[signal_col(window, tol)] = cross.astype("Int8")
     # Fase 4: persistência opcional (rompimento + k dias mantendo-se above, one-shot na confirmação).
     if persist:

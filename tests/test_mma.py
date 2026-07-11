@@ -90,7 +90,7 @@ def test_break_silent_without_new_cross():
 def test_signal_col_persist_name():
     """
     Por quê: o sweep descobre o nome da dummy só pelos parâmetros. Com persist>0,
-    o nome deve mudar de *_break para *_persist{k}; com persist=0 (default), fica break.
+    o nome deve mudar de *_signal para *_persist{k}; com persist=0 (default), fica signal.
 
     Lógica: Entrada (window, tol, persist) → Saída (nome canônico).
     """
