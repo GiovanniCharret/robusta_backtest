@@ -58,7 +58,7 @@ Concluída em 2026-06-30 — **38 testes passando** (`uv run pytest`); e2e verif
 - [x] Grid `{window, tol, persist}` em `run_mma` (sweep inalterado); coluna `persist` no summary + linha no `dicionário`.
 - [x] Testes (mma, config, e2e) verdes. Grid: 4×3×3×3×2 = **216 linhas** de summary.
 
-## Fase 3 — Multi-indicador + summary unificado (planejamento)
+## Fase 3 — Multi-indicador + summary unificado
 
 Spec aprovado em 2026-07-01: `planning/2026-07-01-multi-indicator-design.md`. Decisões travadas:
 onset bullish como dummy (estado→transição); só bullish nesta passada; ranking do master por
@@ -79,11 +79,17 @@ vira a dimensão `tol=[0.0, 0.005]` do grid de `exaustao_atr`/`alto_volume` (lim
 one-shot em t+k — a variante de persistência que faz sentido onde o persist do estado não se
 aplica. Master ≈ 1.290 linhas (215 combos × 3 × 2).
 
+Concluída em 2026-07-11 — **94 testes passando** (`uv run pytest`); e2e verificado em `^BVSP`
+(`period="10y"`, 2.484 dias, 10 indicadores, **1.290 linhas** em `summary_ALL.xlsx`; **21 arquivos**
+em `output/`). Ranking conferido: dentro de `logit` a coluna `lift` desce (NaN ao final); dentro de
+`ols` a coluna `coef` desce (NaN ao final); em `mma`, linhas com `persist` maior têm `n_eventos`
+estritamente menor que o `persist=0` do mesmo combo (sanidade do subconjunto confirmada).
+
 - [x] Spec revisado pelo usuário → plano de implementação escrito:
       `planning/2026-07-07-multi-indicator-implementation-plan.md` (15 tasks TDD).
-- [ ] `runner.py` genérico + `run_all.py` (baixa preços 1×, itera roster, gera master).
-- [ ] 9 módulos de indicador (cópia do padrão `mma`) + testes TDD por módulo.
-- [ ] `config.INDICATORS` / `config.PARAM_GRIDS` + fixture `synthetic_prices_volume`.
+- [x] `runner.py` genérico + `run_all.py` (baixa preços 1×, itera roster, gera master).
+- [x] 9 módulos de indicador (cópia do padrão `mma`) + testes TDD por módulo.
+- [x] `config.INDICATORS` / `config.PARAM_GRIDS` + fixture `synthetic_prices_volume`.
 
 ## Itens futuros (fora desta fase)
 
