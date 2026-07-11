@@ -112,7 +112,9 @@ Itens de backlog, por relevância:
   apenas se um dos dois se destacar no ranking.
 - [f] Higiene menor: comentário órfão em `tests/test_run_all.py` + guarda `assert notna` no teste de
   ranking; comentário desatualizado no topo de `run_mma.py`; `filterwarnings` nos 2 testes de borda
-  do `test_modeling.py` (3 warnings pré-existentes da Fase 1); nomes antigos "break/above" em nomes
+  do `test_modeling.py` (3 warnings pré-existentes da Fase 1; +4 desde a Task 16 em
+  test_run_all/test_run_mma/test_runner — statsmodels reagindo a menos eventos após remover os
+  fantasmas, esperado e não-bloqueante); nomes antigos "break/above" em nomes
   de testes do `test_mma.py`; injetar 1 pico de volume na fixture `synthetic_prices_volume` para os
   2 testes genéricos de av/ea deixarem de passar com 0 eventos (decisão de 2026-07-11 mantida).
 
