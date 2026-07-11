@@ -48,3 +48,36 @@ def test_config_grids_drive_build_summary(synthetic_prices):
         * len(config.PERSISTENCES) * len(config.HORIZONS) * 2
     )
     assert len(summary) == esperado
+
+
+# Teste: o roster e os grids do multi-indicador estão bem formados e casados.
+def test_indicators_and_param_grids_wellformed():
+    """
+    Por quê: o run_all itera INDICATORS e busca PARAM_GRIDS[nome]; se o roster e os
+    grids desalinharem, o run_all quebra com KeyError. Este teste trava o contrato.
+
+    Lógica: Entrada (config) → Fase 1 roster → Fase 2 grids → Fase 3 casamento → Saída.
+    """
+    # Fase 1: INDICATORS é lista não-vazia de strings, com o mma incluído.
+    assert isinstance(config.INDICATORS, list) and config.INDICATORS
+    assert all(isinstance(n, str) and n for n in config.INDICATORS)
+    assert "mma" in config.INDICATORS
+    # Fase 2: PARAM_GRIDS é dict; cada grid é dict de listas não-vazias.
+    assert isinstance(config.PARAM_GRIDS, dict)
+    for nome, grid in config.PARAM_GRIDS.items():
+        assert isinstance(grid, dict) and grid
+        for valores in grid.values():
+            assert isinstance(valores, list) and len(valores) >= 1
+    # Fase 3: todo indicador do roster tem um grid, e vice-versa.
+    assert set(config.INDICATORS) == set(config.PARAM_GRIDS)
+    # Fase 4: persist existe em TODO grid; regimes varrem PERSISTENCES, eventos ficam em [0].
+    for grid in config.PARAM_GRIDS.values():
+        assert "persist" in grid
+    assert config.PERSISTENCES == [0, 1, 2, 3, 4]
+    assert config.PARAM_GRIDS["mma"]["persist"] == config.PERSISTENCES
+    # Fase 4: os dois indicadores de evento pontual não varrem persistência...
+    assert config.PARAM_GRIDS["alto_volume"]["persist"] == [0]
+    assert config.PARAM_GRIDS["exaustao_atr"]["persist"] == [0]
+    # Fase 4/Saída: ...mas varrem a confirmação de PREÇO (o preço segurou k dias após o evento?).
+    assert config.PARAM_GRIDS["alto_volume"]["confirm"] == [0, 1, 2, 3, 4]
+    assert config.PARAM_GRIDS["exaustao_atr"]["confirm"] == [0, 1, 2, 3, 4]
