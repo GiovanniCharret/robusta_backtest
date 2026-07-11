@@ -102,10 +102,11 @@ Itens de backlog, por relevância:
   espúrio por série, inflando `n_eventos`. É semântica herdada da Fase 1 (decisão do plano, não
   bug). Corrigir nos 10 módulos de uma vez (ex.: mascarar onset quando o valor em t−1 é NaN),
   de preferência junto com a validação out-of-sample.
-- [f] **Assimetria de baseline entre os 2 módulos de evento** (prescrita pelo plano): `exaustao_atr`
-  compara com o ATR de ONTEM (`shift(1)`); `alto_volume` compara com média que INCLUI o próprio dia
-  (pico dilui a si mesmo em 1/20). Não é vazamento (info ≤ t). Decidir: simetrizar
-  (`vol_ma.shift(1)`) ou documentar como intencional no design doc.
+- [x] **Assimetria de baseline entre os 2 módulos de evento** — DECIDIDO (2026-07-11): é
+  **intencional**. `exaustao_atr` compara com o ATR de ONTEM (`shift(1)`); `alto_volume` compara
+  com média que inclui o próprio dia. Simetrizar deixaria os indicadores parecidos demais — a
+  diferenciação é desejada. Documentado no design doc (§4, ressalva 4). Aprofundar testes/revisões
+  apenas se um dos dois se destacar no ranking.
 - [f] Higiene menor: comentário órfão em `tests/test_run_all.py` + guarda `assert notna` no teste de
   ranking; comentário desatualizado no topo de `run_mma.py`; `filterwarnings` nos 2 testes de borda
   do `test_modeling.py` (3 warnings pré-existentes da Fase 1); nomes antigos "break/above" em nomes

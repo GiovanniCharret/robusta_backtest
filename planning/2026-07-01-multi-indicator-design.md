@@ -83,6 +83,10 @@ Usa apenas passado/presente → **sem vazamento** para o alvo.
    `lift < 1` aqui **é o achado**, não um bug. Mantido como sinal bullish; os dados decidem.
 3. **RSI é reversão à média.** Onset bullish = **sair do sobrevendido** (cruzar `low`=30 p/ cima),
    não "RSI alto". É o gatilho clássico de compra.
+4. **Assimetria de baseline av × ea é intencional (2026-07-11).** `alto_volume` compara o volume
+   com a média que INCLUI o próprio dia (o pico dilui a si mesmo em 1/w); `exaustao_atr` compara o
+   TR com o ATR de ONTEM (`shift(1)`). Não simetrizar: a diferenciação entre indicadores é desejada
+   (senão eles se parecem demais). Revisar apenas se um deles se destacar no ranking.
 
 ## 5. Runner e saídas
 
