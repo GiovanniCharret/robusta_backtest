@@ -7,8 +7,9 @@
 
 - **Design (spec):** `planning/2026-06-29-robusta-rebuild-design.md`
 - **Design Fase 3 (multi-indicador):** `planning/2026-07-01-multi-indicator-design.md`
+- **Plano Fase 3 (implementação):** `planning/2026-07-07-multi-indicator-implementation-plan.md`
 - **Plano de implementação:** `planning/2026-06-29-robusta-rebuild-plan.md`
-- **Apoio visual:** `planning/robusta-design-explainer.html` e `planning/robusta-plan-explainer.html`
+- **Apoio visual (Fase 3):** `planning/fase3-plan-explainer.html` (os explainers das fases 1–2 foram removidos)
 - **Mapa de testes:** `planning/TESTES.md` (cobertura das 7 fases + lacunas priorizadas)
 
 ## Decisões travadas (2026-06-29)
@@ -65,7 +66,21 @@ onset bullish como dummy (estado→transição); só bullish nesta passada; rank
 com `INDICATORS` + `PARAM_GRIDS`. Roster (9 novos + mma): `mme, obv, vwap, alto_volume, exaustao_atr,
 rsi, macd, donchian, bollinger`. Saídas: par por indicador + `summary_ALL.xlsx` (rankeável).
 
-- [ ] Spec revisado pelo usuário → escrever plano de implementação (writing-plans).
+Decisões adicionais (2026-07-07/08, na revisão do plano): nomes harmonizados `*_state`/`*_signal`
+(mma renomeado de `_above`/`_break`); grid **só** em `config.PARAM_GRIDS` (sem `PARAM_GRID` nos
+módulos); saída plana em `output/` com sufixo (sem subpastas); **persist estendido aos 10 módulos**
+(bloco de streak do mma sobre o `state` de cada um) — os 8 de regime varrem
+`PERSISTENCES=[0,1,2,3,4]`, `alto_volume`/`exaustao_atr` ficam `[0]` (evento pontual);
+`config.PERSISTENCES` atualizado de `[0,3,4]`. **`tolerancia_erro=0.005` do legado** (2026-07-10):
+vira a dimensão `tol=[0.0, 0.005]` do grid de `exaustao_atr`/`alto_volume` (limiar
+`≥ mult·ref·(1−tol)` — tol SUAVIZA, oposto do tol do mma); demais divergências vs legado
+(só bullish; onset em vez de estado) são decisões do spec. **Confirmação de preço `confirm=[0..4]`**
+(2026-07-10) nos 2 módulos de evento: evento no dia t + `Close[t+1..t+k] ≥ Close[t]`, dummy
+one-shot em t+k — a variante de persistência que faz sentido onde o persist do estado não se
+aplica. Master ≈ 1.290 linhas (215 combos × 3 × 2).
+
+- [x] Spec revisado pelo usuário → plano de implementação escrito:
+      `planning/2026-07-07-multi-indicator-implementation-plan.md` (15 tasks TDD).
 - [ ] `runner.py` genérico + `run_all.py` (baixa preços 1×, itera roster, gera master).
 - [ ] 9 módulos de indicador (cópia do padrão `mma`) + testes TDD por módulo.
 - [ ] `config.INDICATORS` / `config.PARAM_GRIDS` + fixture `synthetic_prices_volume`.

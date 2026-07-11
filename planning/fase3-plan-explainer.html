@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plano Fase 3 — Multi-indicador: 9 plug-ins + summary unificado</title>
+  <style>
+    :root {
+      --ivory:    #FAF9F5;
+      --slate:    #141413;
+      --clay:     #D97757;
+      --oat:      #E3DACC;
+      --olive:    #788C5D;
+      --gray-150: #F0EEE6;
+      --gray-300: #D1CFC5;
+      --gray-500: #87867F;
+      --gray-700: #3D3D3A;
+      --white:    #FFFFFF;
+
+      --serif: ui-serif, Georgia, 'Times New Roman', serif;
+      --sans:  system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      --mono:  ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--ivory);
+      color: var(--gray-700);
+      line-height: 1.55;
+      padding: 56px 32px 120px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page { max-width: 1120px; margin: 0 auto; }
+
+    /* ---------- header ---------- */
+
+    header.page-head { margin-bottom: 48px; max-width: 860px; }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-weight: 500;
+      font-size: 38px;
+      line-height: 1.15;
+      color: var(--slate);
+      margin-bottom: 18px;
+      letter-spacing: -0.01em;
+    }
+
+    .prompt-box {
+      background: var(--gray-150);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 14.5px;
+      color: var(--gray-700);
+    }
+    .prompt-box .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-500);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .prompt-box code { font-family: var(--mono); font-size: 13px; }
+
+    /* ---------- section chrome ---------- */
+
+    section { margin-bottom: 64px; }
+
+    .sec-head {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .sec-head .num {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--oat);
+      color: var(--slate);
+      padding: 3px 9px;
+      border-radius: 8px;
+    }
+    .sec-head h2 {
+      font-family: var(--serif);
+      font-weight: 500;
+      font-size: 26px;
+      color: var(--slate);
+      letter-spacing: -0.01em;
+    }
+    .sec-intro {
+      font-size: 14.5px;
+      color: var(--gray-500);
+      max-width: 760px;
+      margin-bottom: 28px;
+    }
+    .sec-intro code, td code, .body code, .q code {
+      font-family: var(--mono);
+      font-size: 0.92em;
+      background: var(--gray-150);
+      border: 1px solid var(--gray-300);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    /* ---------- summary strip ---------- */
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 64px;
+    }
+    @media (max-width: 900px) { .summary { grid-template-columns: repeat(2, 1fr); } }
+    .summary .cell {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .summary .k {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-500);
+      margin-bottom: 6px;
+    }
+    .summary .v {
+      font-size: 17px;
+      color: var(--slate);
+      font-weight: 600;
+    }
+    .summary .v.accent { color: var(--clay); }
+
+    /* ---------- decision cards ---------- */
+
+    .decisions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 860px) { .decisions { grid-template-columns: 1fr; } }
+    .decision {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-left: 4px solid var(--olive);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .decision .dt { font-weight: 600; font-size: 15px; color: var(--slate); margin-bottom: 4px; }
+    .decision .dd { font-size: 13.5px; color: var(--gray-500); }
+    .decision .dd code {
+      font-family: var(--mono); font-size: 12px;
+      background: var(--gray-150); border: 1px solid var(--gray-300);
+      border-radius: 4px; padding: 1px 5px;
+    }
+
+    /* ---------- milestone timeline ---------- */
+
+    .milestones { display: flex; flex-direction: column; gap: 0; }
+    .milestone {
+      display: grid;
+      grid-template-columns: 120px 28px 1fr;
+      gap: 0 18px;
+      position: relative;
+    }
+    .milestone .when {
+      text-align: right;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--gray-500);
+      padding-top: 4px;
+    }
+    .milestone .dot-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .milestone .dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 3px solid var(--clay);
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+    .milestone .dot.done { background: var(--olive); border-color: var(--olive); }
+    .milestone .line {
+      width: 2px;
+      flex: 1;
+      background: var(--gray-300);
+      margin: 4px 0;
+    }
+    .milestone:last-child .line { display: none; }
+    .milestone .body { padding-bottom: 36px; }
+    .milestone .body h3 {
+      font-family: var(--serif);
+      font-weight: 500;
+      font-size: 19px;
+      color: var(--slate);
+      margin-bottom: 4px;
+    }
+    .milestone .body p { font-size: 14px; color: var(--gray-500); margin-bottom: 10px; max-width: 640px; }
+    .milestone .tags { display: flex; gap: 8px; flex-wrap: wrap; }
+    .milestone .tag {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      background: var(--gray-150);
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      padding: 3px 8px;
+      color: var(--gray-700);
+    }
+    .milestone .tag.green { background: #E4E9DC; border-color: #C4CFB4; color: #4B5C39; }
+
+    /* ---------- data flow diagram ---------- */
+
+    .diagram {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      padding: 28px;
+      overflow-x: auto;
+    }
+    .diagram svg { display: block; min-width: 860px; }
+    .diagram text { font-family: var(--mono); }
+    .caption { font-size: 13px; color: var(--gray-500); margin-top: 12px; }
+
+    /* ---------- roster table ---------- */
+
+    .tbl-wrap {
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      overflow-x: auto;
+      background: var(--white);
+    }
+    table.roster { border-collapse: collapse; width: 100%; min-width: 780px; }
+    table.roster th {
+      background: var(--gray-150);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--slate);
+      text-align: left;
+      padding: 12px 16px;
+      border-bottom: 1.5px solid var(--gray-300);
+    }
+    table.roster td {
+      padding: 11px 16px;
+      font-size: 13.5px;
+      border-bottom: 1px solid var(--gray-150);
+      vertical-align: top;
+    }
+    table.roster tr:last-child td { border-bottom: none; }
+    table.roster td.name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--slate); white-space: nowrap; }
+    table.roster td.combos { font-family: var(--mono); font-size: 13px; text-align: right; color: var(--gray-700); }
+    table.roster td .note { font-size: 12px; color: var(--clay); display: block; margin-top: 2px; }
+    table.roster tr.exists td { background: #F4F6F0; }
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      padding: 1px 7px;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .badge.done { background: #E4E9DC; color: #4B5C39; }
+    .badge.new  { background: #F3D9CC; color: #8A3B1E; }
+
+    /* ---------- code panel ---------- */
+
+    .code-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+    @media (max-width: 980px) { .code-grid { grid-template-columns: 1fr; } }
+    .code-block { display: flex; flex-direction: column; gap: 10px; }
+    .code-block .file-label {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+    .code {
+      background: var(--slate);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      flex: 1;
+    }
+    .code pre {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #E8E6DE;
+      white-space: pre;
+    }
+    .code .kw  { color: var(--clay); }
+    .code .str { color: #A3B583; }
+    .code .cm  { color: var(--gray-500); }
+    .code .fn  { color: #C9B98A; }
+
+    /* ---------- ranking mock ---------- */
+
+    .rank-mock {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+    .rank-mock .mock-label {
+      padding: 12px 18px;
+      border-bottom: 1.5px solid var(--gray-300);
+      font-family: var(--mono);
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--gray-500);
+      background: var(--gray-150);
+    }
+    table.rank { border-collapse: collapse; width: 100%; min-width: 700px; }
+    table.rank th {
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--gray-500);
+      text-align: left;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--gray-300);
+    }
+    table.rank td {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      padding: 7px 14px;
+      border-bottom: 1px solid var(--gray-150);
+      color: var(--gray-700);
+    }
+    table.rank td.key { font-weight: 700; color: var(--clay); }
+    table.rank tr.fam-split td { border-top: 2px solid var(--gray-300); }
+    table.rank td.dim { color: var(--gray-500); }
+
+    /* ---------- test invariants ---------- */
+
+    .invariants {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 980px;
+    }
+    @media (max-width: 860px) { .invariants { grid-template-columns: 1fr; } }
+    .inv {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .inv .n {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--white);
+      background: var(--olive);
+      border-radius: 6px;
+      padding: 2px 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    .inv .it { font-weight: 600; font-size: 14.5px; color: var(--slate); margin-bottom: 4px; }
+    .inv .id { font-size: 13px; color: var(--gray-500); }
+    .inv .id code {
+      font-family: var(--mono); font-size: 11.5px;
+      background: var(--gray-150); border: 1px solid var(--gray-300);
+      border-radius: 4px; padding: 1px 4px;
+    }
+
+    /* ---------- risk table ---------- */
+
+    .risks {
+      border: 1.5px solid var(--gray-300);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--white);
+    }
+    .risks .row {
+      display: grid;
+      grid-template-columns: 1.6fr 90px 1.6fr;
+      gap: 0;
+    }
+    @media (max-width: 780px) { .risks .row { grid-template-columns: 1fr; } }
+    .risks .row + .row { border-top: 1.5px solid var(--gray-300); }
+    .risks .cell { padding: 14px 18px; font-size: 13.5px; }
+    .risks .cell + .cell { border-left: 1.5px solid var(--gray-300); }
+    @media (max-width: 780px) { .risks .cell + .cell { border-left: none; border-top: 1px dashed var(--gray-300); } }
+    .risks .head { background: var(--gray-150); font-weight: 600; color: var(--slate); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .sev {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .sev.high { background: #F3D9CC; color: #8A3B1E; }
+    .sev.med  { background: var(--oat); color: var(--slate); }
+    .sev.low  { background: #E4E9DC; color: #4B5C39; }
+
+    /* ---------- open questions ---------- */
+
+    .open-q { display: flex; flex-direction: column; gap: 14px; max-width: 860px; }
+    .q {
+      background: var(--white);
+      border: 1.5px solid var(--gray-300);
+      border-left: 4px solid var(--clay);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .q .qt { font-weight: 600; font-size: 15px; color: var(--slate); margin-bottom: 4px; }
+    .q .qd { font-size: 13.5px; color: var(--gray-500); }
+    .q .owner {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--gray-500);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <header class="page-head">
+      <div class="eyebrow">Plano de implementação · ROBUSTA Rebuild · Fase 3</div>
+      <h1>Multi-indicador: 9 plug-ins novos + summary unificado rankeável</h1>
+      <div class="prompt-box">
+        <span class="label">Fontes</span>
+        Spec: <code>planning/2026-07-01-multi-indicator-design.md</code> ·
+        Plano: <code>planning/2026-07-07-multi-indicator-implementation-plan.md</code> ·
+        Tracking: <code>planning/PLAN.md</code> (Fase 3). Este HTML é apoio visual —
+        as decisões vivem no PLAN.md.
+      </div>
+    </header>
+
+    <!-- ============================================================= -->
+
+    <div class="summary">
+      <div class="cell"><div class="k">Tarefas (TDD)</div><div class="v accent">15 tasks</div></div>
+      <div class="cell"><div class="k">Indicadores</div><div class="v">10 (9 novos + mma)</div></div>
+      <div class="cell"><div class="k">Testes</div><div class="v">38 → ~94</div></div>
+      <div class="cell"><div class="k">Master</div><div class="v">215 combos × 3h × 2 fam = 1.290 linhas</div></div>
+    </div>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">01</span><h2>Decisões travadas (2026-07-07)</h2></div>
+      <p class="sec-intro">Quatro decisões tomadas na revisão do spec, antes de escrever o plano. Elas resolvem os pontos onde o spec e o código atual não batiam 1:1.</p>
+
+      <div class="decisions">
+        <div class="decision">
+          <div class="dt">Nomes harmonizados: <code>_state</code> / <code>_signal</code></div>
+          <div class="dd">O <code>mma</code> shipou com <code>_above</code>/<code>_break</code>; o spec pede <code>_state</code>/<code>_signal</code>. Decisão: <strong>renomear o mma</strong> (Task 1) para os 10 módulos ficarem idênticos. Estado bullish em <code>*_state</code>, onset em <code>*_signal</code>, ambos Int8.</div>
+        </div>
+        <div class="decision">
+          <div class="dt">Grid só em <code>config.PARAM_GRIDS</code></div>
+          <div class="dd">O spec sugeria um <code>PARAM_GRID</code> default dentro de cada módulo <em>e</em> no config. Decisão: <strong>fonte única no config</strong> — módulos não carregam grid (evita dado duplicado/morto; simplicidade-first).</div>
+        </div>
+        <div class="decision">
+          <div class="dt">Saída plana em <code>output/</code></div>
+          <div class="dd">Sem subpastas por indicador. Tudo lado a lado com sufixo: <code>analysis_&lt;nome&gt;.xlsx</code>, <code>summary_&lt;nome&gt;.xlsx</code> e <code>summary_ALL.xlsx</code>. O <code>run_mma</code> standalone continua gravando no mesmo lugar.</div>
+        </div>
+        <div class="decision">
+          <div class="dt">Plano antes do código</div>
+          <div class="dd">Seguindo o fluxo do PLAN.md: plano de implementação escrito e revisado <strong>antes</strong> de qualquer código. Execução em TDD estrito, 1 commit por task.</div>
+        </div>
+        <div class="decision">
+          <div class="dt"><code>persist</code> em todos os 10 módulos (2026-07-08)</div>
+          <div class="dd">O bloco de streak do mma generaliza para qualquer estado — todos os módulos ganham <code>persist</code>. O grid decide quem varre: 8 indicadores de <strong>regime</strong> varrem <code>PERSISTENCES=[0,1,2,3,4]</code>; alto_volume/exaustao_atr (<strong>evento pontual</strong>) ficam <code>[0]</code>. Corrige também a divergência <code>[0,3,4]</code> (config da Fase 2) vs <code>[0,4]</code> (design) — vira uma lista só.</div>
+        </div>
+        <div class="decision">
+          <div class="dt"><code>tolerancia_erro</code> do legado vira grid (2026-07-10)</div>
+          <div class="dd">O legado suaviza os limiares de exaustao_atr/alto_volume com <code>tolerancia_erro=0.005</code> global. No rebuild vira a dimensão <code>tol=[0.0, 0.005]</code> do grid desses 2 módulos (limiar <code>≥ mult·ref·(1−tol)</code>) — sem constante escondida, e dá para medir a sensibilidade. Demais divergências vs legado (só bullish; onset em vez de estado contínuo) são decisões do spec.</div>
+        </div>
+        <div class="decision">
+          <div class="dt"><code>confirm</code> — confirmação de PREÇO nos 2 de evento (2026-07-10)</div>
+          <div class="dd">persist não se aplica a evento pontual (picos consecutivos são raros e autodestrutivos — o pico infla a própria referência). A pergunta análoga que faz sentido: <strong>depois do evento, o preço segurou por k dias?</strong> <code>confirm=k</code> = evento no dia t <strong>e</strong> <code>Close[t+1..t+k] ≥ Close[t]</code>, dummy one-shot no dia t+k (sem vazamento). <strong>Referência fixa no Close do dia do evento</strong> (lógica de suporte: validou ou devolveu?) — os k dias podem oscilar entre si; não exige altas consecutivas. Grid <code>confirm=[0..4]</code> só em alto_volume/exaustao_atr.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">02</span><h2>Arquitetura — o que muda e o que não muda</h2></div>
+      <p class="sec-intro">O princípio validado nas Fases 1–2 não muda: <strong>um df-fundação que acumula colunas</strong>, cada indicador vira uma dummy de onset bullish (<code>state &amp; ~state.shift(1)</code> — sem vazamento), avaliada por logit + OLS + associação 2×2. A novidade é o <code>runner.py</code> genérico e o <code>run_all.py</code> que itera o roster. <code>sweep.py</code> já é agnóstico e <strong>não é tocado</strong>.</p>
+
+      <div class="diagram">
+        <svg viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#87867F"/>
+            </marker>
+          </defs>
+
+          <!-- config -->
+          <rect x="20" y="20" width="200" height="88" rx="10" fill="#F0EEE6" stroke="#D1CFC5" stroke-width="1.5"/>
+          <text x="120" y="44" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">config.py</text>
+          <text x="120" y="64" font-size="11" fill="#3D3D3A" text-anchor="middle">INDICATORS (roster de 10)</text>
+          <text x="120" y="80" font-size="11" fill="#3D3D3A" text-anchor="middle">PARAM_GRIDS (grid p/ cada um)</text>
+          <text x="120" y="96" font-size="11" fill="#87867F" text-anchor="middle">TICKER · PERIOD · HORIZONS</text>
+
+          <!-- run_all -->
+          <rect x="300" y="20" width="230" height="88" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="2"/>
+          <text x="415" y="44" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">run_all.py  (novo)</text>
+          <text x="415" y="64" font-size="11" fill="#3D3D3A" text-anchor="middle">baixa preços 1× (yfinance)</text>
+          <text x="415" y="80" font-size="11" fill="#3D3D3A" text-anchor="middle">itera o roster</text>
+          <text x="415" y="96" font-size="11" fill="#3D3D3A" text-anchor="middle">consolida o master</text>
+
+          <!-- run_mma wrapper -->
+          <rect x="610" y="20" width="270" height="88" rx="10" fill="#FFFFFF" stroke="#D1CFC5" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="745" y="44" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">run_mma.py  (vira wrapper fino)</text>
+          <text x="745" y="64" font-size="11" fill="#3D3D3A" text-anchor="middle">mantém a assinatura antiga</text>
+          <text x="745" y="80" font-size="11" fill="#3D3D3A" text-anchor="middle">delega ao runner com o módulo mma</text>
+          <text x="745" y="96" font-size="11" fill="#788C5D" text-anchor="middle">testes atuais seguem verdes</text>
+
+          <!-- arrows to runner -->
+          <line x1="120" y1="108" x2="120" y2="150" stroke="#87867F" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="415" y1="108" x2="415" y2="150" stroke="#87867F" stroke-width="1.5" marker-end="url(#arr)"/>
+          <line x1="745" y1="108" x2="745" y2="150" stroke="#87867F" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- runner -->
+          <rect x="20" y="156" width="860" height="72" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="2"/>
+          <text x="450" y="182" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">runner.py  (novo — extraído do run_mma)</text>
+          <text x="450" y="202" font-size="11.5" fill="#3D3D3A" text-anchor="middle">build_summary(prices, indicator, param_grid, horizons) → add_labels → run_sweep · write_outputs(name) · summary_dictionary(derivado das colunas reais)</text>
+
+          <!-- arrow -->
+          <line x1="450" y1="228" x2="450" y2="266" stroke="#87867F" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- sweep (unchanged) -->
+          <rect x="20" y="272" width="860" height="64" rx="10" fill="#F4F6F0" stroke="#788C5D" stroke-width="1.5"/>
+          <text x="450" y="296" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">sweep.run_sweep — NÃO MUDA (já é agnóstico: recebe o módulo + grid por injeção)</text>
+          <text x="450" y="316" font-size="11.5" fill="#3D3D3A" text-anchor="middle">para cada combo × horizonte:  fit_logit (y_hd) + contingency 2×2 + fit_ols (ret_hd)  →  2 linhas de summary</text>
+
+          <!-- arrow -->
+          <line x1="450" y1="336" x2="450" y2="374" stroke="#87867F" stroke-width="1.5" marker-end="url(#arr)"/>
+
+          <!-- indicators row -->
+          <rect x="20" y="380" width="560" height="80" rx="10" fill="#FFFFFF" stroke="#D1CFC5" stroke-width="1.5"/>
+          <text x="300" y="404" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">indicators/ — 10 plug-ins, mesmo contrato</text>
+          <text x="300" y="424" font-size="11" fill="#3D3D3A" text-anchor="middle">NAME · signal_col(**params) · add_columns(df, **params)</text>
+          <text x="300" y="444" font-size="11" fill="#87867F" text-anchor="middle">mma · mme · obv · vwap · alto_volume · exaustao_atr · rsi · macd · donchian · bollinger</text>
+
+          <!-- outputs -->
+          <rect x="620" y="380" width="260" height="80" rx="10" fill="#F0EEE6" stroke="#D1CFC5" stroke-width="1.5"/>
+          <text x="750" y="404" font-size="13" fill="#141413" text-anchor="middle" font-weight="bold">output/  (plano, com sufixo)</text>
+          <text x="750" y="424" font-size="11" fill="#3D3D3A" text-anchor="middle">analysis_&lt;nome&gt;.xlsx · summary_&lt;nome&gt;.xlsx</text>
+          <text x="750" y="444" font-size="11" fill="#8A3B1E" text-anchor="middle" font-weight="bold">summary_ALL.xlsx (ranking + dicionário)</text>
+
+          <line x1="580" y1="420" x2="614" y2="420" stroke="#87867F" stroke-width="1.5" marker-end="url(#arr)"/>
+        </svg>
+      </div>
+      <p class="caption">Laranja = módulos novos/refatorados nesta fase. Verde = intocado. Tracejado = vira wrapper (interface preservada).</p>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">03</span><h2>As 15 tasks, em 3 blocos</h2></div>
+      <p class="sec-intro">Cada task é um ciclo TDD completo (teste falhando → implementação mínima → suíte verde → commit). O bloco de base (T1–T4) não quebra nada do que existe; os testes das Fases 1–2 seguem verdes o tempo todo.</p>
+
+      <div class="milestones">
+        <div class="milestone">
+          <div class="when">Bloco A · T1</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>Harmonizar nomes do mma</h3>
+            <p><code>_above</code> → <code>_state</code>, <code>_break</code> → <code>_signal</code>. Rename interno; nada fora do módulo usa os literais (usam <code>signal_col()</code>/<code>value_col()</code>).</p>
+            <div class="tags"><span class="tag">indicators/mma.py</span><span class="tag">tests/test_mma.py</span></div>
+          </div>
+        </div>
+
+        <div class="milestone">
+          <div class="when">Bloco A · T2</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>Extrair runner.py genérico</h3>
+            <p><code>build_summary(prices, indicator, grid, ...)</code> + <code>write_outputs(name)</code> + <code>summary_dictionary</code> derivado das colunas reais (params variam por indicador). <code>run_mma.py</code> vira wrapper fino — assinaturas antigas preservadas.</p>
+            <div class="tags"><span class="tag">runner.py (novo)</span><span class="tag">run_mma.py</span><span class="tag">tests/test_runner.py</span></div>
+          </div>
+        </div>
+
+        <div class="milestone">
+          <div class="when">Bloco A · T3</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>config.INDICATORS + PARAM_GRIDS</h3>
+            <p>Roster de 10 nomes + grid por indicador, no painel único. Teste trava o contrato: todo nome do roster tem grid, e vice-versa.</p>
+            <div class="tags"><span class="tag">config.py</span><span class="tag">tests/test_config.py</span></div>
+          </div>
+        </div>
+
+        <div class="milestone">
+          <div class="when">Bloco A · T4</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>Fixture synthetic_prices_volume</h3>
+            <p>A fixture atual tem Volume constante — obv/vwap/alto_volume/exaustao_atr não gerariam sinal. Nova fixture com Volume determinístico e variável (senoide + rampa, sempre &gt; 0).</p>
+            <div class="tags"><span class="tag">tests/conftest.py</span><span class="tag">tests/test_fixtures.py</span></div>
+          </div>
+        </div>
+
+        <div class="milestone">
+          <div class="when">Bloco B · T5–T13</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>Os 9 módulos de indicador (1 task cada)</h3>
+            <p>Cópia do padrão mma: cada módulo com <code>NAME</code> / <code>value_col</code> / <code>signal_col</code> / <code>add_columns</code>, acumulando <code>valor → *_state → *_signal</code> (+ <code>*_persist{k}</code>) no df-fundação. 5 testes por módulo (ver seção 05). Ordem: mme, obv, vwap, alto_volume, exaustao_atr, rsi, macd, donchian, bollinger.</p>
+            <div class="tags">
+              <span class="tag">9 × indicators/&lt;nome&gt;.py</span>
+              <span class="tag">9 × tests/test_&lt;nome&gt;.py</span>
+              <span class="tag green">45 testes novos</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="milestone">
+          <div class="when">Bloco C · T14</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>run_all.py + master rankeável</h3>
+            <p>Baixa preços 1×, itera o roster via <code>importlib</code>, grava o par por indicador e o <code>summary_ALL.xlsx</code> (abas <code>ranking</code> + <code>dicionário</code>). <code>build_master</code> concatena e ordena por família (ver seção 06).</p>
+            <div class="tags"><span class="tag">run_all.py (novo)</span><span class="tag">tests/test_run_all.py</span></div>
+          </div>
+        </div>
+
+        <div class="milestone">
+          <div class="when">Bloco C · T15</div>
+          <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+          <div class="body">
+            <h3>Verificação e2e + PLAN.md</h3>
+            <p>Roda o pipeline real (<code>python -m robusta.run_all</code>, rede), confere os 21 arquivos em <code>output/</code> e a ordenação do ranking, marca a Fase 3 como concluída no PLAN.md com os números do e2e.</p>
+            <div class="tags"><span class="tag">planning/PLAN.md</span><span class="tag green">e2e real (^BVSP)</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">04</span><h2>Roster — o que cada indicador mede</h2></div>
+      <p class="sec-intro">Todo indicador expõe um ESTADO bullish <code>s[t]</code>; a dummy (variável independente) é o <strong>onset</strong> — a transição para esse estado. Com <code>persist=k</code>, a dummy vira o onset <strong>confirmado</strong>: acendeu e manteve o estado por mais k dias (one-shot no dia da confirmação, sem vazamento). Combos = tamanho do grid do indicador em <code>config.PARAM_GRIDS</code>.</p>
+
+      <div class="tbl-wrap">
+        <table class="roster">
+          <thead>
+            <tr><th>Módulo</th><th>Estado bullish s[t]</th><th>Grid (config)</th><th style="text-align:right">Combos</th></tr>
+          </thead>
+          <tbody>
+            <tr class="exists">
+              <td class="name">mma <span class="badge done">existe</span></td>
+              <td>Close &gt; SMA(w)·(1+tol) — rompimento da média simples</td>
+              <td><code>w∈{10,26,50,200} · tol∈{0,.015,.03} · persist∈{0..4}</code></td>
+              <td class="combos">60</td>
+            </tr>
+            <tr>
+              <td class="name">mme <span class="badge new">T5</span></td>
+              <td>Close &gt; EMA(w)·(1+tol) — irmã exponencial do mma</td>
+              <td><code>w∈{10,26,50,200} · tol∈{0,.015,.03} · persist∈{0..4}</code></td>
+              <td class="combos">60</td>
+            </tr>
+            <tr>
+              <td class="name">obv <span class="badge new">T6</span></td>
+              <td>OBV &gt; média_móvel(OBV, w) — fluxo comprador dominante</td>
+              <td><code>w∈{20,50} · persist∈{0..4}</code></td>
+              <td class="combos">10</td>
+            </tr>
+            <tr>
+              <td class="name">vwap <span class="badge new">T7</span></td>
+              <td>Close &gt; VWAP <strong>rolante</strong>(w)·(1+tol)
+                <span class="note">rolante, não cumulativo — cumulativo em 10 anos vira quase constante</span></td>
+              <td><code>w∈{20,50} · tol∈{0,.015} · persist∈{0..4}</code></td>
+              <td class="combos">20</td>
+            </tr>
+            <tr>
+              <td class="name">alto_volume <span class="badge new">T8</span></td>
+              <td>Volume ≥ mult·média(w)·(1−tol) <strong>E</strong> Close subiu — compra com convicção
+                <span class="note">tol=0.005 = legado (suaviza o limiar) · confirm_k = o preço segurou ≥ Close do pico por k dias</span></td>
+              <td><code>w∈{20} · mult∈{1.5,2.0} · tol∈{0,.005} · persist∈{0} · confirm∈{0..4}</code></td>
+              <td class="combos">20</td>
+            </tr>
+            <tr>
+              <td class="name">exaustao_atr <span class="badge new">T9</span></td>
+              <td>TR ≥ mult·ATR(ontem)·(1−tol) <strong>E</strong> Close subiu
+                <span class="note">provavelmente contrário (lift &lt; 1 é achado) · tol=0.005 = legado · confirm_k = o preço segurou por k dias</span></td>
+              <td><code>atr_period∈{14} · mult∈{1.5,2.0} · tol∈{0,.005} · persist∈{0} · confirm∈{0..4}</code></td>
+              <td class="combos">20</td>
+            </tr>
+            <tr>
+              <td class="name">rsi <span class="badge new">T10</span></td>
+              <td>RSI(w) ≥ low — onset = <strong>sair do sobrevendido</strong> (cruzar 30 p/ cima)
+                <span class="note">reversão à média: o gatilho é a saída do fundo, não "RSI alto"</span></td>
+              <td><code>w∈{14} · low∈{30} · persist∈{0..4}</code></td>
+              <td class="combos">5</td>
+            </tr>
+            <tr>
+              <td class="name">macd <span class="badge new">T11</span></td>
+              <td>MACD(fast,slow) &gt; linha de sinal(sig) — cruzamento clássico de compra</td>
+              <td><code>fast∈{12} · slow∈{26} · sig∈{9} · persist∈{0..4}</code></td>
+              <td class="combos">5</td>
+            </tr>
+            <tr>
+              <td class="name">donchian <span class="badge new">T12</span></td>
+              <td>Close &gt; máx(High, N dias <strong>anteriores</strong>) — nova máxima (shift(1), sem vazamento)</td>
+              <td><code>N∈{20,55} · persist∈{0..4}</code></td>
+              <td class="combos">10</td>
+            </tr>
+            <tr>
+              <td class="name">bollinger <span class="badge new">T13</span></td>
+              <td>Close &gt; SMA(w) + n_std·σ(w) — rompe a banda superior</td>
+              <td><code>w∈{20} · n_std∈{2.0} · persist∈{0..4}</code></td>
+              <td class="combos">5</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">Total: 215 combos × 3 horizontes (20/45/90) × 2 famílias (logit/ols) = <strong>1.290 linhas</strong> no summary_ALL. Os 8 indicadores de <strong>regime</strong> varrem persist 0–4; os 2 de <strong>evento pontual</strong> varrem <strong>confirm 0–4</strong> no lugar (o estado deles não dura, mas "o preço segurou k dias após o pico?" é a pergunta análoga). Atenção ao sentido do tol: nos 2 de evento ele <strong>suaviza</strong> o limiar (mais eventos); no mma/mme/vwap ele <strong>aperta</strong> a banda (menos eventos).</p>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">05</span><h2>Estratégia de teste — 5 invariantes por módulo</h2></div>
+      <p class="sec-intro">Como a lógica de transição é deliberadamente duplicada entre os 10 módulos (isolamento &gt; DRY, decisão do spec), o antídoto é a <strong>mesma bateria de testes em todos</strong>: divergências entre módulos aparecem como testes quebrados.</p>
+
+      <div class="invariants">
+        <div class="inv">
+          <span class="n">1 · schema</span>
+          <div class="it">Cria as colunas canônicas</div>
+          <div class="id">Valor, <code>*_state</code> e <code>*_signal</code> presentes; dummy só 0/1; dtype <code>Int8</code>; <code>NAME</code> correto.</div>
+        </div>
+        <div class="inv">
+          <span class="n">2 · onset ≠ estado</span>
+          <div class="it">A invariante central</div>
+          <div class="id"><code>sum(signal) == nº de transições 0→1 do state</code>. O evento acende só no 1º dia da sequência bullish — nunca vira estado.</div>
+        </div>
+        <div class="inv">
+          <span class="n">3 · semântica</span>
+          <div class="it">1 teste específico do indicador</div>
+          <div class="id">rsi acende ao cruzar 30 p/ cima; macd ao cruzar a linha de sinal; donchian na nova máxima de N dias; alto_volume NÃO acende em pico de volume num dia de queda; exaustão só em dia de range gigante de alta.</div>
+        </div>
+        <div class="inv">
+          <span class="n">4 · robustez</span>
+          <div class="it">Janela &gt; série → zero eventos</div>
+          <div class="id"><code>min_periods</code> em todo rolling/ewm → valor NaN → estado indefinível → dummy toda 0, sem quebrar (o grid real usa janelas de até 200 dias).</div>
+        </div>
+        <div class="inv">
+          <span class="n">5 · persist</span>
+          <div class="it">Confirmação one-shot, sem vazamento</div>
+          <div class="id"><code>persist_k</code> acende UMA vez, exatamente k dias após um onset, com o estado ligado em todo o intervalo (<code>streak == k+1</code>). Mesmo bloco de código do mma em todos os módulos.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">06</span><h2>Ranking do master — como ler o summary_ALL</h2></div>
+      <p class="sec-intro">R² não serve para comparar indicadores entre si (pseudo-R² do logit e R² do OLS têm escalas diferentes, e ambos são minúsculos com 1 dummy). A chave de ranking é o <strong>tamanho do efeito</strong>: <code>lift</code> nas linhas logit, <code>coef</code> nas linhas ols. <code>family</code> é a chave primária de ordenação — lift e coef nunca são comparados um com o outro.</p>
+
+      <div class="code-grid">
+        <div class="code-block">
+          <div class="file-label">run_all.build_master — o núcleo da ordenação</div>
+          <div class="code"><pre><span class="cm"># Fase 2: chave de ranking por linha.</span>
+sort_key = master[<span class="str">"lift"</span>].where(
+    master[<span class="str">"family"</span>] == <span class="str">"logit"</span>,
+    master[<span class="str">"coef"</span>],   <span class="cm"># senão: ols usa coef</span>
+)
+<span class="cm"># Fase 3: família primeiro (primária),</span>
+<span class="cm"># chave desc, NaN afunda.</span>
+master = (master
+  .assign(_sort=sort_key)
+  .sort_values([<span class="str">"family"</span>, <span class="str">"_sort"</span>],
+      ascending=[<span class="kw">True</span>, <span class="kw">False</span>],
+      na_position=<span class="str">"last"</span>)
+  .drop(columns=<span class="str">"_sort"</span>))</pre></div>
+        </div>
+
+        <div class="code-block">
+          <div class="file-label">Como o leitor filtra (guardas visíveis no ranking)</div>
+          <div class="code"><pre><span class="cm"># Antes de confiar num lift alto:</span>
+
+<span class="fn">n_eventos</span> ≥ MIN_EVENTS   <span class="cm"># amostra suficiente?</span>
+<span class="fn">fisher_p</span>  &lt; 0.05        <span class="cm"># associação significativa?</span>
+
+<span class="cm"># lift 2.0 com n_eventos=6 e fisher_p=0.4</span>
+<span class="cm"># é ruído, não achado.</span>
+
+<span class="cm"># exaustao_atr com lift &lt; 1 é ESPERADO</span>
+<span class="cm"># (sinal contrário) — é achado, não bug.</span></pre></div>
+        </div>
+      </div>
+
+      <div class="rank-mock" style="margin-top:28px">
+        <div class="mock-label">summary_ALL.xlsx · aba "ranking" (ilustrativo)</div>
+        <table class="rank">
+          <thead>
+            <tr><th>indicator</th><th>params</th><th>horizon</th><th>family</th><th>lift</th><th>coef</th><th>n_eventos</th><th>fisher_p</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>donchian</td><td class="dim">N=55</td><td>90</td><td>logit</td><td class="key">1.42</td><td class="dim">0.61</td><td>18</td><td>0.021</td></tr>
+            <tr><td>mma</td><td class="dim">w=200 t=0.03</td><td>90</td><td>logit</td><td class="key">1.31</td><td class="dim">0.48</td><td>11</td><td>0.048</td></tr>
+            <tr><td>macd</td><td class="dim">12/26/9</td><td>45</td><td>logit</td><td class="key">1.12</td><td class="dim">0.22</td><td>54</td><td>0.190</td></tr>
+            <tr><td>exaustao_atr</td><td class="dim">p=14 m=2.0</td><td>20</td><td>logit</td><td class="key">0.81</td><td class="dim">-0.35</td><td>9</td><td>0.110</td></tr>
+            <tr class="fam-split"><td>mme</td><td class="dim">w=50 t=0.015</td><td>90</td><td>ols</td><td class="dim">NaN</td><td class="key">0.0212</td><td>23</td><td class="dim">NaN</td></tr>
+            <tr><td>bollinger</td><td class="dim">w=20 s=2.0</td><td>45</td><td>ols</td><td class="dim">NaN</td><td class="key">0.0146</td><td>31</td><td class="dim">NaN</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">Valores fictícios, só para mostrar a forma. Dentro de <code>logit</code> a coluna lift desce; a partir da quebra de família, <code>ols</code> ordena por coef. lift/fisher_p são NaN no ols por definição (associação 2×2 só faz sentido em alvo binário).</p>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">07</span><h2>Riscos e mitigação</h2></div>
+
+      <div class="risks">
+        <div class="row">
+          <div class="cell head">Risco</div>
+          <div class="cell head">Sev.</div>
+          <div class="cell head">Mitigação</div>
+        </div>
+        <div class="row">
+          <div class="cell">Lógica de transição duplicada em 10 módulos diverge silenciosamente (trade-off aceito da escolha "um módulo por indicador").</div>
+          <div class="cell"><span class="sev med">MÉDIA</span></div>
+          <div class="cell">Bateria de testes idêntica por módulo (as 4 invariantes da seção 05) — divergência = teste vermelho.</div>
+        </div>
+        <div class="row">
+          <div class="cell">Rename <code>_above</code>/<code>_break</code> → <code>_state</code>/<code>_signal</code> quebra algo que dependa dos literais antigos.</div>
+          <div class="cell"><span class="sev low">BAIXA</span></div>
+          <div class="cell">Fora de <code>test_mma.py</code>, ninguém usa os literais — todos passam por <code>signal_col()</code>/<code>value_col()</code>. Task 1 roda a suíte inteira antes do commit.</div>
+        </div>
+        <div class="row">
+          <div class="cell">Indicadores raros (exaustao_atr, alto_volume) têm poucos eventos → estimativas frágeis ou lift enganoso no topo do ranking.</div>
+          <div class="cell"><span class="sev med">MÉDIA</span></div>
+          <div class="cell"><code>MIN_EVENTS</code> degrada para <code>sem_eventos</code>; guardas <code>n_eventos</code> e <code>fisher_p</code> visíveis no ranking para o leitor filtrar.</div>
+        </div>
+        <div class="row">
+          <div class="cell"><code>concat</code> de summaries com params diferentes gera NaN nas colunas de params alheios (ex.: <code>N</code> do donchian nas linhas do mma).</div>
+          <div class="cell"><span class="sev low">BAIXA</span></div>
+          <div class="cell">Esperado e inofensivo — NaN em param = "não se aplica". O <code>summary_dictionary</code> derivado das colunas reais documenta cada param no dicionário do master.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+
+    <section>
+      <div class="sec-head"><span class="num">08</span><h2>Decisão persist — resolvida em 2026-07-08</h2></div>
+
+      <div class="open-q">
+        <div class="q" style="border-left-color: var(--olive)">
+          <div class="qt"><code>persist</code> incluído nos 10 módulos; grid varre 0–4 nos 8 de regime</div>
+          <div class="qd">
+            O usuário quer investigar a persistência em todos os indicadores (ex.: fechar acima do vwap
+            e os 4 dias seguintes persistirem acima ≠ fechar acima e devolver no dia seguinte). O bloco
+            de streak do <code>mma</code> generaliza para qualquer estado, então <strong>todos os módulos
+            ganham <code>persist</code></strong> — e o <code>config.PARAM_GRIDS</code> decide quem varre:
+            regime = <code>[0,1,2,3,4]</code>; evento pontual (alto_volume, exaustao_atr) = <code>[0]</code>.
+            Ressalva de leitura: ~1.290 modelos testados → mais falsos positivos por comparação múltipla;
+            filtrar por <code>n_eventos</code> e <code>fisher_p</code> antes de confiar em qualquer lift.
+          </div>
+          <div class="owner">decidido: usuário (2026-07-08) · config.PERSISTENCES: [0,3,4] → [0,1,2,3,4]</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>
