@@ -8,8 +8,9 @@ from robusta.indicators import macd
 
 # Fixture local: cai e depois sobe (MACD cruza a linha de sinal p/ cima).
 def _down_then_up():
-    # Fase 1: 30 dias caindo + 30 subindo (gera o cruzamento do MACD).
-    close = np.concatenate([np.linspace(100, 70, 30), np.linspace(70, 120, 30)])
+    # Fase 1: 45 dias caindo + 45 subindo (queda longa esgota o warm-up da linha
+    # de sinal antes do cruzamento real do MACD, que só ocorre na rampa de subida).
+    close = np.concatenate([np.linspace(100, 55, 45), np.linspace(55, 125, 45)])
     # Saída: DataFrame só com Close.
     return pd.DataFrame({"Close": close})
 
