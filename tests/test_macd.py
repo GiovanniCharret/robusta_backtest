@@ -40,10 +40,14 @@ def test_macd_signal_equals_state_transitions():
     """
     # Fase 1.
     out = macd.add_columns(_down_then_up(), fast=12, slow=26, sig=9)
-    # Fase 2: invariante.
+    # Fase 2: invariante, exigindo referência (a linha de SINAL, cujo warm-up é mais
+    # tardio que o da linha MACD e por isso domina o estado) válida ontem — o fim
+    # do warm-up não conta como transição real (Task 16).
     state = out["macd_12_26_9_state"]
     sig = out[macd.signal_col(12, 26, 9)]
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    ref = out["macd_12_26_9_line"]
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
     assert int(sig.sum()) == int(transitions)
 
 
@@ -103,3 +107,35 @@ def test_macd_persist_fires_once_at_confirmation():
     for i in idxs:
         assert int(onset.iloc[i - 2]) == 1
         assert all(int(state.iloc[j]) == 1 for j in range(i - 2, i + 1))
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_macd_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia em que a linha de sinal fica calculável (fim do warm-up de
+    NaN — ela é mais tardia que a linha MACD e por isso domina o estado), se o MACD
+    já está acima dela, o onset antigo disparava — o "abaixo de ontem" usado na
+    comparação era um NaN coerido para False, não uma observação real. Este teste
+    prova que uma série sempre subindo (MACD > sinal já no 1º dia válido) NÃO gera
+    onset nem persistência fantasma.
+
+    Lógica: Entrada (Close sempre subindo) → Fase 1 add_columns(fast=2, slow=3,
+    sig=2, persist=2) → Fase 2 determina numericamente o 1º dia válido da linha de
+    sinal e confirma que o cenário é real (estado já True ali) → Fase 3 nem o onset
+    nem a persistência disparam (nenhuma transição genuína) → Saída.
+    """
+    # Entrada: Close sempre subindo (rampa linear, sem quedas).
+    df = pd.DataFrame({"Close": [10, 12, 14, 16, 18, 20, 22, 24]})
+    # Fase 1: fast=2, slow=3, sig=2, persist=2 (confirmaria 2 dias após o onset).
+    out = macd.add_columns(df.copy(), fast=2, slow=3, sig=2, persist=2)
+    # Fase 2: 1º dia válido da linha de sinal, determinado numericamente (não
+    # hard-coded) — é ele quem domina o warm-up do estado.
+    first_valid = out["macd_2_3_2_line"].first_valid_index()
+    # Fase 2: o estado já é True nesse 1º dia válido — confirma que o cenário é real.
+    state = out["macd_2_3_2_state"]
+    assert int(state.iloc[first_valid]) == 1
+    # Fase 3: nem o onset nem a persistência podem disparar — não há transição
+    # genuína, só o fim do warm-up.
+    assert int(out[macd.signal_col(2, 3, 2)].sum()) == 0
+    # Saída: a persistência (ancorada num onset genuíno) também fica silenciosa.
+    assert int(out[macd.signal_col(2, 3, 2, persist=2)].sum()) == 0

@@ -29,10 +29,14 @@ def test_ea_signal_equals_state_transitions(synthetic_prices_volume):
     """
     # Fase 1.
     out = ea.add_columns(synthetic_prices_volume.copy(), atr_period=14, mult=1.5)
-    # Fase 2: invariante.
+    # Fase 2: invariante, exigindo referência (o ATR usado pelo estado é o de ONTEM,
+    # por isso aplicamos .shift(1) antes do .notna().shift(1)) válida ontem — o fim
+    # do warm-up não conta como transição real (Task 16).
     state = out["exaustao_atr_p14_m1.5_t0.0_state"]
     sig = out[ea.signal_col(14, 1.5)]
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    ref = out[ea.value_col(14)].shift(1)
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
     assert int(sig.sum()) == int(transitions)
 
 
@@ -151,3 +155,39 @@ def test_ea_confirm_price_hold_after_event():
     assert int(ca.sum()) == 1 and int(ca.iloc[6]) == 1 and str(ca.dtype) == "Int8"
     # Fase 2/Saída: no cenário que devolve, nenhuma confirmação.
     assert int(cb.sum()) == 0
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_ea_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia CALCULÁVEL do estado (o 1º dia em que o ATR de ONTEM existe),
+    se o range gigante E a alta já se verificam, o onset antigo disparava — o "abaixo
+    de ontem" usado na comparação era um NaN coerido para False, não uma observação
+    real. Este teste prova que um cenário que já nasce "acima" desde o 1º dia
+    calculável E permanece assim no dia seguinte NÃO gera onset nem persistência
+    fantasma.
+
+    Lógica: Entrada (2 dias calmos seguidos de 2 dias de range gigante em alta) →
+    Fase 1 add_columns(atr_period=2, mult=2.0, persist=1) → Fase 2 confirma que o
+    cenário é real (estado já True no 1º dia calculável, idx2) → Fase 3 nem o onset
+    nem a persistência disparam (nenhuma transição genuína) → Saída.
+    """
+    # Entrada: 2 dias calmos (TR=1 → ATR2 válido só a partir do idx1) e 2 dias de
+    # range gigante em alta (idx2 e idx3).
+    df = pd.DataFrame({
+        "High":  [10.5, 10.5, 20, 30],
+        "Low":   [9.5, 9.5, 11, 21],
+        "Close": [10, 10, 19, 29],
+    })
+    # Fase 1: ATR de 2, mult=2.0, persist=1 (confirmaria 1 dia após o onset).
+    out = ea.add_columns(df.copy(), atr_period=2, mult=2.0, persist=1)
+    # Fase 2: o 1º dia CALCULÁVEL do estado é idx2 (ATR.shift(1) só existe a partir
+    # daqui, pois atr_p2 tem seu 1º valor no idx1); estado já True ali (TR=10 ≥
+    # 2·ATR(idx1)=2) — confirma que o cenário é real.
+    state = out["exaustao_atr_p2_m2.0_t0.0_state"]
+    assert int(state.iloc[2]) == 1
+    # Fase 3: nem o onset nem a persistência podem disparar — não há transição
+    # genuína, só o fim do warm-up (mesmo com o estado ligado 2 dias seguidos).
+    assert int(out[ea.signal_col(2, 2.0)].sum()) == 0
+    # Saída: a persistência (ancorada num onset genuíno) também fica silenciosa.
+    assert int(out[ea.signal_col(2, 2.0, persist=1)].sum()) == 0

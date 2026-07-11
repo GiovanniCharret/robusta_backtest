@@ -29,10 +29,13 @@ def test_dc_signal_equals_state_transitions(synthetic_prices_volume):
     """
     # Fase 1.
     out = dc.add_columns(synthetic_prices_volume.copy(), N=20)
-    # Fase 2: invariante.
+    # Fase 2: invariante, exigindo referência (o teto do canal) válida ontem — o
+    # fim do warm-up não conta como transição real (Task 16).
     state = out["donchian_N20_state"]
     sig = out[dc.signal_col(20)]
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    ref = out[dc.value_col(20)]
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
     assert int(sig.sum()) == int(transitions)
 
 
@@ -78,16 +81,51 @@ def test_dc_persist_fires_once_at_confirmation():
     mais k dias seguidos. One-shot na confirmação, sem vazamento.
 
     Lógica: Entrada (platô, depois novas máximas todo dia) → Fase 1 add_columns(persist=2)
-    → Fase 2 onset no idx3, estado segue ligado → confirmação única no idx5 → Saída.
+    → Fase 2 onset no idx4, estado segue ligado → confirmação única no idx6 → Saída.
     """
-    # Entrada: platô de 3 dias e depois novas máximas todo dia (estado permanece ligado).
+    # Entrada: platô de 4 dias (Task 16: precisa de 1 dia a mais que a versão
+    # original — o teto só fica válido no idx3, e ali o Close ainda está no platô,
+    # dando um "não-acima" REAL observado; sem esse dia extra o onset do idx3 seria
+    # o artefato fantasma do 1º dia de warm-up, hoje suprimido) e depois novas
+    # máximas todo dia (estado permanece ligado).
     df = pd.DataFrame({
-        "High":  [10, 10, 10, 11, 12, 13, 14, 15],
-        "Close": [10, 10, 10, 11, 12, 13, 14, 15],
+        "High":  [10, 10, 10, 10, 11, 12, 13, 14, 15],
+        "Close": [10, 10, 10, 10, 11, 12, 13, 14, 15],
     })
     # Fase 1: N=3, persist=2.
     out = dc.add_columns(df.copy(), N=3, persist=2)
-    # Fase 2: onset no idx3 (rompe o teto=10); streak=3 no idx5 → confirmação única.
+    # Fase 2: teto válido desde o idx3 (10, com Close=10 → estado False real); onset
+    # genuíno no idx4 (rompe o teto=10); streak=3 no idx6 → confirmação única.
     p = out[dc.signal_col(3, persist=2)]
-    # Fase 2/Saída: uma única confirmação, no idx5, dtype Int8.
-    assert int(p.sum()) == 1 and int(p.iloc[5]) == 1 and str(p.dtype) == "Int8"
+    # Fase 2/Saída: uma única confirmação, no idx6, dtype Int8.
+    assert int(p.sum()) == 1 and int(p.iloc[6]) == 1 and str(p.dtype) == "Int8"
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_dc_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia em que o teto do canal fica calculável (fim do warm-up de
+    NaN), se o Close já está acima dele, o onset antigo disparava — o "abaixo de
+    ontem" usado na comparação era um NaN coerido para False, não uma observação
+    real. Este teste prova que uma série sempre subindo (Close rompe o teto já no
+    1º dia válido) NÃO gera onset nem persistência fantasma.
+
+    Lógica: Entrada (High=Close sempre subindo) → Fase 1 add_columns(N=3, persist=2)
+    → Fase 2 confirma que o cenário é real (estado já True no 1º dia válido, idx3)
+    → Fase 3 nem o onset nem a persistência disparam (nenhuma transição genuína) →
+    Saída.
+    """
+    # Entrada: High=Close sobem 1 ponto por dia.
+    df = pd.DataFrame({"High": [10, 11, 12, 13, 14, 15], "Close": [10, 11, 12, 13, 14, 15]})
+    # Fase 1: N=3, persist=2 (confirmaria 2 dias após o onset).
+    out = dc.add_columns(df.copy(), N=3, persist=2)
+    # Fase 2: 1º dia válido do teto é idx3 (rolling(3).max().shift(1) → min_periods=3
+    # mais 1 dia do shift); estado já True ali (Close=13 > teto=12) — confirma que o
+    # cenário é real.
+    state = out["donchian_N3_state"]
+    assert int(state.iloc[3]) == 1
+    # Fase 3: nem o onset nem a persistência podem disparar — não há transição
+    # genuína, só o fim do warm-up.
+    assert int(out[dc.signal_col(3)].sum()) == 0
+    # Saída: a persistência (ancorada num onset genuíno) também fica silenciosa.
+    assert int(out[dc.signal_col(3, persist=2)].sum()) == 0

@@ -52,8 +52,9 @@ def add_columns(df: pd.DataFrame, atr_period: int, mult: float, tol: float = 0.0
       Fase 1: True Range = max(H−L, |H−C_ontem|, |L−C_ontem|).
       Fase 2: ATR = média móvel do TR (min_periods=atr_period) em atr_p{atr_period}.
       Fase 3: range gigante = TR ≥ mult·ATR.shift(1)·(1−tol); alta = Close > Close[ontem].
-      Fase 4: estado = gigante E alta em *_state; onset (transição 0→1) em *_signal.
-      Fase 5: se persist>0, dummy de persistência (onset + k dias no estado) em *_persist{k}.
+      Fase 4: estado = gigante E alta em *_state; onset (transição 0→1, exigindo o
+        ATR de ontem válido — evita o onset fantasma no 1º dia útil do warm-up) em *_signal.
+      Fase 5: se persist>0, dummy de persistência (onset GENUÍNO + k dias no estado) em *_persist{k}.
       Fase 6: se confirm>0, dummy de confirmação de PREÇO (evento + Close[t+1..t+k] ≥ Close[t],
         one-shot no dia t+k, só passado/presente) em *_confirm{k}.
       Saída: df-fundação com as colunas anexadas (3 fixas; +1 por opcional ativo).
@@ -73,25 +74,31 @@ def add_columns(df: pd.DataFrame, atr_period: int, mult: float, tol: float = 0.0
     atr = tr.rolling(atr_period, min_periods=atr_period).mean()
     # Fase 2: grava o ATR.
     df[value_col(atr_period)] = atr
-    # Fase 3: range gigante relativo ao ATR de ONTEM (atr.shift(1) evita vazamento),
-    # com o limiar suavizado pelo tol do legado.
-    big = tr >= mult * atr.shift(1) * (1 - tol)
+    # Fase 3: ATR de ONTEM (evita vazamento); é a referência cujo warm-up limita o
+    # estado — reusada no range gigante e no onset.
+    ref = atr.shift(1)
+    # Fase 3: range gigante relativo ao ATR de ONTEM, com o limiar suavizado pelo tol do legado.
+    big = tr >= mult * ref * (1 - tol)
     # Fase 3: dia de alta.
     up = df["Close"] > prev_close
     # Fase 4: estado = range gigante E alta.
     state = big & up
     # Fase 4: grava o estado como Int8.
     df[f"exaustao_atr_p{atr_period}_m{mult}_t{tol}_state"] = state.astype("Int8")
-    # Fase 4: onset = transição 0→1 do estado.
-    onset = state & ~state.shift(1, fill_value=False)
+    # Fase 4: onset = gigante+alta hoje, não hoje ontem, E o ATR de ontem era VÁLIDO
+    # ontem (o "não" de ontem foi observado, não um NaN do warm-up — evita o onset
+    # fantasma no 1º dia válido).
+    onset = state & ~state.shift(1, fill_value=False) & ref.notna().shift(1, fill_value=False)
     # Fase 4: grava o onset como Int8.
     df[signal_col(atr_period, mult, tol)] = onset.astype("Int8")
     # Fase 5: persistência opcional (onset + k dias mantendo o estado, one-shot na confirmação).
     if persist:
         # Fase 5: streak = nº de dias consecutivos com o MESMO valor de state, terminando em t.
         streak = state.groupby((state != state.shift()).cumsum()).cumcount() + 1
-        # Fase 5: acende só quando state=1 e a sequência tem exatamente k+1 dias (sem vazamento).
-        df[signal_col(atr_period, mult, tol, persist)] = (state & (streak == persist + 1)).astype("Int8")
+        # Fase 5: persist acende só se state=1, a sequência tem exatamente k+1 dias E a
+        # corrida começou com um onset GENUÍNO k dias atrás (âncora; mata o persist
+        # fantasma do warm-up).
+        df[signal_col(atr_period, mult, tol, persist)] = (state & (streak == persist + 1) & onset.shift(persist, fill_value=False)).astype("Int8")
     # Fase 6: confirmação de PREÇO opcional (evento + Close segurando o nível por k dias).
     if confirm:
         # Fase 6: candidato à confirmação = o dia k após um onset.

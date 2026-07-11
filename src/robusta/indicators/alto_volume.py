@@ -52,8 +52,9 @@ def add_columns(df: pd.DataFrame, window: int, mult: float, tol: float = 0.0, pe
       Fase 1: média móvel do volume (min_periods=window) em volma_w{window}.
       Fase 2: pico = Volume ≥ mult·média·(1−tol); alta = Close > Close[ontem].
       Fase 3: estado = pico E alta em *_state.
-      Fase 4: onset = transição 0→1 em *_signal.
-      Fase 5: se persist>0, dummy de persistência (onset + k dias no estado) em *_persist{k}.
+      Fase 4: onset = transição 0→1, exigindo a média de volume válida ontem (evita
+        o onset fantasma no 1º dia útil do warm-up), em *_signal.
+      Fase 5: se persist>0, dummy de persistência (onset GENUÍNO + k dias no estado) em *_persist{k}.
       Fase 6: se confirm>0, dummy de confirmação de PREÇO (evento + Close[t+1..t+k] ≥ Close[t],
         one-shot no dia t+k, só passado/presente) em *_confirm{k}.
       Saída: df-fundação com as colunas anexadas (3 fixas; +1 por opcional ativo).
@@ -70,16 +71,20 @@ def add_columns(df: pd.DataFrame, window: int, mult: float, tol: float = 0.0, pe
     state = high_vol & up
     # Fase 3: grava o estado como Int8.
     df[f"alto_volume_w{window}_m{mult}_t{tol}_state"] = state.astype("Int8")
-    # Fase 4: onset = transição 0→1 do estado.
-    onset = state & ~state.shift(1, fill_value=False)
+    # Fase 4: onset = pico+alta hoje, não hoje ontem, E a média de volume era VÁLIDA
+    # ontem (o "não" de ontem foi observado, não um NaN do warm-up — evita o onset
+    # fantasma no 1º dia válido).
+    onset = state & ~state.shift(1, fill_value=False) & vol_ma.notna().shift(1, fill_value=False)
     # Fase 4: grava o onset como Int8.
     df[signal_col(window, mult, tol)] = onset.astype("Int8")
     # Fase 5: persistência opcional (onset + k dias mantendo o estado, one-shot na confirmação).
     if persist:
         # Fase 5: streak = nº de dias consecutivos com o MESMO valor de state, terminando em t.
         streak = state.groupby((state != state.shift()).cumsum()).cumcount() + 1
-        # Fase 5: acende só quando state=1 e a sequência tem exatamente k+1 dias (sem vazamento).
-        df[signal_col(window, mult, tol, persist)] = (state & (streak == persist + 1)).astype("Int8")
+        # Fase 5: persist acende só se state=1, a sequência tem exatamente k+1 dias E a
+        # corrida começou com um onset GENUÍNO k dias atrás (âncora; mata o persist
+        # fantasma do warm-up).
+        df[signal_col(window, mult, tol, persist)] = (state & (streak == persist + 1) & onset.shift(persist, fill_value=False)).astype("Int8")
     # Fase 6: confirmação de PREÇO opcional (evento + Close segurando o nível por k dias).
     if confirm:
         # Fase 6: candidato à confirmação = o dia k após um onset.

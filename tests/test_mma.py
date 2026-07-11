@@ -64,9 +64,12 @@ def test_break_is_event_not_state():
     state = out[f"mma_w3_t0.0_state"]
     sig = out[mma.signal_col(3, 0.0)]
     assert state.sum() > sig.sum()
-    # Fase 3: cada signal=1 corresponde a uma transição (state hoje, não-state ontem).
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
-    # Saída: o nº de signals é exatamente o nº de transições 0→1.
+    # Fase 3: cada signal=1 corresponde a uma transição (state hoje, não-state ontem) COM
+    # referência (a média) válida ontem — warm-up não conta como transição real (Task 16).
+    ref = out[mma.value_col(3)]
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
+    # Saída: o nº de signals é exatamente o nº de transições 0→1 com referência válida.
     assert int(sig.sum()) == int(transitions)
 
 
@@ -160,3 +163,32 @@ def test_window_larger_than_series_yields_no_events():
     assert out[mma.value_col(200)].isna().all()
     # Fase 3/Saída: nenhum rompimento (a dummy é toda 0).
     assert int(out[mma.signal_col(200, 0.0)].sum()) == 0
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_mma_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia em que a média fica calculável (fim do warm-up de NaN), se o
+    Close já está acima dela, o rompimento antigo disparava — o "abaixo de ontem"
+    usado na comparação era um NaN coerido para False, não uma observação real, não
+    um cruzamento genuíno. Este teste prova que uma série que já nasce "acima" desde
+    o 1º dia válido NÃO gera rompimento nem persistência fantasma.
+
+    Lógica: Entrada (Close dobra a cada dia, mais rápido que a própria média de 3) →
+    Fase 1 add_columns(window=3, persist=2) → Fase 2 confirma que o cenário é real
+    (estado já True no 1º dia válido, idx2) → Fase 3 nem o rompimento nem a
+    persistência disparam (nenhuma transição genuína) → Saída.
+    """
+    # Entrada: Close dobra a cada dia; a mma3 (média dos 3 últimos) fica sempre abaixo.
+    df = pd.DataFrame({"Close": [1, 2, 4, 8, 16, 32]})
+    # Fase 1: janela 3, persist=2 (persistência confirmaria 2 dias após o rompimento).
+    out = mma.add_columns(df.copy(), window=3, tol=0.0, persist=2)
+    # Fase 2: 1º dia válido da média é idx2 (janela cheia com 3 pontos); estado já True
+    # ali (4 > 2,333...) — confirma que o cenário é real, não um artefato do teste.
+    state = out["mma_w3_t0.0_state"]
+    assert int(state.iloc[2]) == 1
+    # Fase 3: nem o rompimento (sinal de evento) nem a persistência podem disparar —
+    # não há transição genuína, só o fim do warm-up.
+    assert int(out[mma.signal_col(3, 0.0)].sum()) == 0
+    # Saída: a persistência (ancorada num rompimento genuíno) também fica silenciosa.
+    assert int(out[mma.signal_col(3, 0.0, persist=2)].sum()) == 0

@@ -36,10 +36,13 @@ def test_mme_signal_equals_state_transitions():
     df = pd.DataFrame({"Close": [10, 9, 8, 9, 12, 14, 16, 18, 20]})
     # Fase 1: EMA janela 3.
     out = mme.add_columns(df.copy(), window=3, tol=0.0)
-    # Fase 2: sum(signal) == nº de transições 0→1 do estado.
+    # Fase 2: sum(signal) == nº de transições 0→1 do estado COM referência (a EMA)
+    # válida ontem — o fim do warm-up não conta como transição real (Task 16).
     state = out[f"mme_w3_t0.0_state"]
     sig = out[mme.signal_col(3, 0.0)]
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    ref = out[mme.value_col(3)]
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
     assert int(sig.sum()) == int(transitions)
 
 
@@ -99,3 +102,32 @@ def test_mme_persist_fires_once_at_confirmation():
     for i in idxs:
         assert int(onset.iloc[i - 2]) == 1
         assert all(int(state.iloc[j]) == 1 for j in range(i - 2, i + 1))
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_mme_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia em que a EMA fica calculável (fim do warm-up de NaN), se o
+    Close já está acima dela, o onset antigo disparava — o "abaixo de ontem" usado
+    na comparação era um NaN coerido para False, não uma observação real. Este teste
+    prova que uma série que já nasce "acima" desde o 1º dia válido NÃO gera onset
+    nem persistência fantasma.
+
+    Lógica: Entrada (Close dobra a cada dia, mais rápido que a própria EMA de 3) →
+    Fase 1 add_columns(window=3, persist=2) → Fase 2 confirma que o cenário é real
+    (estado já True no 1º dia válido, idx2) → Fase 3 nem o onset nem a persistência
+    disparam (nenhuma transição genuína) → Saída.
+    """
+    # Entrada: Close dobra a cada dia; a mme3 (EMA dos 3 últimos) fica sempre abaixo.
+    df = pd.DataFrame({"Close": [1, 2, 4, 8, 16, 32]})
+    # Fase 1: janela 3, persist=2 (persistência confirmaria 2 dias após o onset).
+    out = mme.add_columns(df.copy(), window=3, tol=0.0, persist=2)
+    # Fase 2: 1º dia válido da EMA é idx2 (min_periods=3); estado já True ali
+    # (4 > 2,75) — confirma que o cenário é real, não um artefato do teste.
+    state = out["mme_w3_t0.0_state"]
+    assert int(state.iloc[2]) == 1
+    # Fase 3: nem o onset nem a persistência podem disparar — não há transição
+    # genuína, só o fim do warm-up.
+    assert int(out[mme.signal_col(3, 0.0)].sum()) == 0
+    # Saída: a persistência (ancorada num onset genuíno) também fica silenciosa.
+    assert int(out[mme.signal_col(3, 0.0, persist=2)].sum()) == 0

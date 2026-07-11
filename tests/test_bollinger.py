@@ -29,10 +29,13 @@ def test_bb_signal_equals_state_transitions(synthetic_prices_volume):
     """
     # Fase 1.
     out = bb.add_columns(synthetic_prices_volume.copy(), window=20, n_std=2.0)
-    # Fase 2: invariante.
+    # Fase 2: invariante, exigindo referência (a banda superior) válida ontem — o
+    # fim do warm-up não conta como transição real (Task 16).
     state = out["bollinger_w20_s2.0_state"]
     sig = out[bb.signal_col(20, 2.0)]
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    ref = out["boll_upper_w20_s2.0"]
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
     assert int(sig.sum()) == int(transitions)
 
 
@@ -73,17 +76,54 @@ def test_bb_persist_fires_once_at_confirmation():
     alarga aos poucos após um salto, então o estado dura alguns dias e desliga.
     One-shot na confirmação, sem vazamento.
 
-    Lógica: Entrada (19 dias parado + salto mantido) → Fase 1 add_columns(persist=2)
-    → Fase 2 onset no idx19; estado dura idx19–21 → confirmação única no idx21 → Saída.
+    Lógica: Entrada (20 dias parado + salto mantido) → Fase 1 add_columns(persist=2)
+    → Fase 2 onset no idx20; estado dura idx20–22 → confirmação única no idx22 → Saída.
     """
-    # Entrada: 19 dias parado em 10 e salto para 20 mantido (a banda alarga aos poucos).
-    df = pd.DataFrame({"Close": [10.0] * 19 + [20.0] * 5})
+    # Entrada: 20 dias parado em 10 (Task 16: precisa de 1 dia a mais que a versão
+    # original — a banda só fica válida no idx19, e ali o Close ainda está no
+    # platô, dando um "não-acima" REAL observado; sem esse dia extra o onset do
+    # idx19 seria o artefato fantasma do 1º dia de warm-up, hoje suprimido) e
+    # salto para 20 mantido (a banda alarga aos poucos).
+    df = pd.DataFrame({"Close": [10.0] * 20 + [20.0] * 5})
     # Fase 1: janela 20, 2 desvios, persist=2.
     out = bb.add_columns(df.copy(), window=20, n_std=2.0, persist=2)
-    # Fase 2: onset no idx19 (1º dia acima da banda superior).
+    # Fase 2: banda válida desde o idx19 (Close=10 → estado False real); onset
+    # genuíno no idx20 (1º dia acima da banda superior).
     onset = out[bb.signal_col(20, 2.0)]
-    assert int(onset.iloc[19]) == 1
-    # Fase 2: estado dura 3 dias (idx19–21; no idx22 a banda já engoliu o salto).
+    assert int(onset.iloc[20]) == 1
+    # Fase 2: estado dura 3 dias (idx20–22; no idx23 a banda já engoliu o salto).
     p = out[bb.signal_col(20, 2.0, persist=2)]
-    # Fase 2/Saída: uma única confirmação, no idx21, dtype Int8.
-    assert int(p.sum()) == 1 and int(p.iloc[21]) == 1 and str(p.dtype) == "Int8"
+    # Fase 2/Saída: uma única confirmação, no idx22, dtype Int8.
+    assert int(p.sum()) == 1 and int(p.iloc[22]) == 1 and str(p.dtype) == "Int8"
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_bb_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia em que a banda superior fica calculável (fim do warm-up de
+    NaN), se o Close já está acima dela, o onset antigo disparava — o "abaixo de
+    ontem" usado na comparação era um NaN coerido para False, não uma observação
+    real. Este teste prova que uma série que dobra a cada dia (Close já rompe a
+    banda desde o 1º dia válido e permanece acima) NÃO gera onset nem persistência
+    fantasma. Usa n_std=1.0 (com n_std=2.0 e janela 3 é matematicamente impossível
+    o 3º ponto exceder a banda — o máximo de 3 pontos fica a ≤1,155σ da média).
+
+    Lógica: Entrada (Close dobra a cada dia) → Fase 1 add_columns(window=3,
+    n_std=1.0, persist=2) → Fase 2 confirma que o cenário é real (estado já True no
+    1º dia válido, idx2) → Fase 3 nem o onset nem a persistência disparam (nenhuma
+    transição genuína) → Saída.
+    """
+    # Entrada: Close dobra a cada dia.
+    df = pd.DataFrame({"Close": [1.0, 2.0, 4.0, 8.0, 16.0, 32.0]})
+    # Fase 1: janela 3, n_std=1.0, persist=2 (confirmaria 2 dias após o onset).
+    out = bb.add_columns(df.copy(), window=3, n_std=1.0, persist=2)
+    # Fase 2: 1º dia válido da banda superior é idx2 (min_periods=3); estado já
+    # True ali (Close=4 > banda≈3,86 = média 2,33 + 1·σ 1,53) — confirma que o
+    # cenário é real.
+    state = out["bollinger_w3_s1.0_state"]
+    assert int(state.iloc[2]) == 1
+    # Fase 3: nem o onset nem a persistência podem disparar — não há transição
+    # genuína, só o fim do warm-up.
+    assert int(out[bb.signal_col(3, 1.0)].sum()) == 0
+    # Saída: a persistência (ancorada num onset genuíno) também fica silenciosa.
+    assert int(out[bb.signal_col(3, 1.0, persist=2)].sum()) == 0

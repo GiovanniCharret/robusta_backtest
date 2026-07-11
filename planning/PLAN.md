@@ -96,12 +96,15 @@ estritamente menor que o `persist=0` do mesmo combo (sanidade do subconjunto con
 Review de branch inteira (18 commits): pronto para merge, zero achados Critical/Important.
 Itens de backlog, por relevância:
 
-- [f] **Artefato de onset no warm-up** (todos os 10 módulos; pior no `rsi`): o 1º dia em que o
+- [x] **Artefato de onset no warm-up** (todos os 10 módulos; pior no `rsi`): o 1º dia em que o
   estado fica válido-e-True após o warm-up de NaN dispara um onset "fantasma" (comparação com NaN
   vira False). No rsi (estado = RSI≥30, verdadeiro na maioria dos dias) isso ~garante 1 evento
   espúrio por série, inflando `n_eventos`. É semântica herdada da Fase 1 (decisão do plano, não
   bug). Corrigir nos 10 módulos de uma vez (ex.: mascarar onset quando o valor em t−1 é NaN),
   de preferência junto com a validação out-of-sample.
+  Corrigido em 2026-07-11 (Task 16): onset exige ref válida em t−1; persist ancorado em onset
+  genuíno via `onset.shift(persist)`; confirm herdou a correção; +10 testes
+  `no_phantom_onset_at_warmup`; e2e re-verificado (1.290 linhas).
 - [x] **Assimetria de baseline entre os 2 módulos de evento** — DECIDIDO (2026-07-11): é
   **intencional**. `exaustao_atr` compara com o ATR de ONTEM (`shift(1)`); `alto_volume` compara
   com média que inclui o próprio dia. Simetrizar deixaria os indicadores parecidos demais — a

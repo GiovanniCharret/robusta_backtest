@@ -48,8 +48,11 @@ def add_columns(df: pd.DataFrame, window: int, tol: float = 0.0, persist: int = 
       Entrada: df-fundação com Close, janela, tolerância e persistência (0 = desligada).
       Fase 1: calcula a média móvel simples e a grava em mma_w{window}.
       Fase 2: grava o ESTADO "acima da banda" (Close > mma*(1+tol)).
-      Fase 3: grava o EVENTO de cruzamento (acima hoje e não-acima ontem) = a dummy de rompimento.
-      Fase 4: se persist>0, grava a dummy de PERSISTÊNCIA (rompeu e ficou above por mais k dias).
+      Fase 3: grava o EVENTO de cruzamento (acima hoje, não-acima ontem E a média
+        era válida ontem — evita o rompimento fantasma no 1º dia útil do warm-up)
+        = a dummy de rompimento.
+      Fase 4: se persist>0, grava a dummy de PERSISTÊNCIA (rompeu GENUINAMENTE e
+        ficou above por mais k dias).
       Saída: o df-fundação com as colunas anexadas (3 sempre; +1 se persist>0).
     """
     # Fase 1: nome e cálculo da média móvel simples do Close.
@@ -60,16 +63,19 @@ def add_columns(df: pd.DataFrame, window: int, tol: float = 0.0, persist: int = 
     above = df["Close"] > df[vcol] * (1 + tol)
     # Fase 2: grava o ESTADO como Int8 (coluna *_state) para revisão.
     df[f"mma_w{window}_t{tol}_state"] = above.astype("Int8")
-    # Fase 3: cruzamento = acima hoje E não-acima ontem (shift preenche o 1º dia como False).
-    cross = above & ~above.shift(1, fill_value=False)
+    # Fase 3: cruzamento = acima hoje, não-acima ontem, E a média era VÁLIDA ontem (o
+    # não-acima de ontem foi observado, não um NaN do warm-up — evita o rompimento
+    # fantasma no 1º dia válido).
+    cross = above & ~above.shift(1, fill_value=False) & df[vcol].notna().shift(1, fill_value=False)
     # Fase 3: grava a dummy de evento (coluna *_signal) como Int8.
     df[signal_col(window, tol)] = cross.astype("Int8")
     # Fase 4: persistência opcional (rompimento + k dias mantendo-se above, one-shot na confirmação).
     if persist:
         # Fase 4: streak = nº de dias consecutivos com o MESMO valor de above, terminando em t.
         streak = above.groupby((above != above.shift()).cumsum()).cumcount() + 1
-        # Fase 4: persist acende SÓ quando above=1 e a sequência atual tem exatamente k+1 dias
-        # (rompimento no início + k dias acima); usa só passado/presente → sem vazamento.
-        df[signal_col(window, tol, persist)] = (above & (streak == persist + 1)).astype("Int8")
+        # Fase 4: persist acende só quando above=1, a sequência atual tem exatamente k+1
+        # dias E a sequência começou com um rompimento GENUÍNO k dias atrás (âncora;
+        # mata o rompimento fantasma do warm-up).
+        df[signal_col(window, tol, persist)] = (above & (streak == persist + 1) & cross.shift(persist, fill_value=False)).astype("Int8")
     # Saída: df-fundação enriquecido.
     return df

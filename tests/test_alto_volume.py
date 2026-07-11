@@ -29,10 +29,13 @@ def test_av_signal_equals_state_transitions(synthetic_prices_volume):
     """
     # Fase 1: janela 20, mult 1,5.
     out = av.add_columns(synthetic_prices_volume.copy(), window=20, mult=1.5)
-    # Fase 2: invariante evento == transições.
+    # Fase 2: invariante evento == transições COM referência (a média de volume)
+    # válida ontem — o fim do warm-up não conta como transição real (Task 16).
     state = out["alto_volume_w20_m1.5_t0.0_state"]
     sig = out[av.signal_col(20, 1.5)]
-    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    ref = out[av.value_col(20)]
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)
+                   & ref.notna().shift(1, fill_value=False)).sum()
     assert int(sig.sum()) == int(transitions)
 
 
@@ -135,3 +138,33 @@ def test_av_confirm_price_hold_after_event():
     assert int(ca.sum()) == 1 and int(ca.iloc[5]) == 1 and str(ca.dtype) == "Int8"
     # Fase 2/Saída: no cenário que devolve, nenhuma confirmação.
     assert int(cb.sum()) == 0
+
+
+# Task 16 (review final da Fase 3): onset fantasma no 1º dia válido do warm-up.
+def test_av_no_phantom_onset_at_warmup():
+    """
+    Por quê: no 1º dia em que a média de volume fica calculável (fim do warm-up de
+    NaN), se o pico E a alta já se verificam, o onset antigo disparava — o "abaixo
+    de ontem" usado na comparação era um NaN coerido para False, não uma observação
+    real. Este teste prova que um cenário que já nasce "acima" desde o 1º dia válido
+    E permanece assim no dia seguinte NÃO gera onset nem persistência fantasma.
+
+    Lógica: Entrada (Close sobe todo dia; volume salta no 1º dia válido e continua
+    alto no dia seguinte) → Fase 1 add_columns(window=3, mult=1.5, persist=1) →
+    Fase 2 confirma que o cenário é real (estado já True no 1º dia válido, idx2) →
+    Fase 3 nem o onset nem a persistência disparam (nenhuma transição genuína) →
+    Saída.
+    """
+    # Entrada: Close sobe todo dia; volume salta no idx2 (pico) e permanece alto no idx3.
+    df = pd.DataFrame({"Close": [10, 11, 12, 13], "Volume": [100, 100, 1000, 3000]})
+    # Fase 1: janela 3, mult=1.5, persist=1 (confirmaria 1 dia após o onset).
+    out = av.add_columns(df.copy(), window=3, mult=1.5, persist=1)
+    # Fase 2: 1º dia válido da média de volume é idx2 (min_periods=3); estado já
+    # True ali (Volume=1000 ≥ 1,5·400 E Close subiu) — confirma que o cenário é real.
+    state = out["alto_volume_w3_m1.5_t0.0_state"]
+    assert int(state.iloc[2]) == 1
+    # Fase 3: nem o onset nem a persistência podem disparar — não há transição
+    # genuína, só o fim do warm-up (mesmo com o estado ligado 2 dias seguidos).
+    assert int(out[av.signal_col(3, 1.5)].sum()) == 0
+    # Saída: a persistência (ancorada num onset genuíno) também fica silenciosa.
+    assert int(out[av.signal_col(3, 1.5, persist=1)].sum()) == 0

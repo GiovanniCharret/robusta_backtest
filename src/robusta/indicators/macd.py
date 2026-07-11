@@ -44,8 +44,10 @@ def add_columns(df: pd.DataFrame, fast: int, slow: int, sig: int, persist: int =
       Fase 1: EMAs rápida e lenta (min_periods = span → NaN até janela cheia).
       Fase 2: MACD = EMA_fast − EMA_slow em macd_{fast}_{slow}.
       Fase 3: linha de sinal = EMA(MACD, sig) em *_line.
-      Fase 4: estado (MACD > sinal) em *_state; onset (transição 0→1) em *_signal.
-      Fase 5: se persist>0, dummy de persistência (onset + k dias no estado) em *_persist{k}.
+      Fase 4: estado (MACD > sinal) em *_state; onset (transição 0→1, exigindo a
+        linha de sinal válida ontem — evita o onset fantasma no 1º dia útil do
+        warm-up) em *_signal.
+      Fase 5: se persist>0, dummy de persistência (onset GENUÍNO + k dias no estado) em *_persist{k}.
       Saída: df-fundação com as colunas anexadas (4 fixas; +1 se persist>0).
     """
     # Fase 1: EMAs (adjust=False = EMA padrão; min_periods evita valor precoce).
@@ -63,15 +65,20 @@ def add_columns(df: pd.DataFrame, fast: int, slow: int, sig: int, persist: int =
     state = macd_line > signal_line
     # Fase 4: grava o estado como Int8.
     df[f"macd_{fast}_{slow}_{sig}_state"] = state.astype("Int8")
-    # Fase 4: onset = transição 0→1 do estado.
-    onset = state & ~state.shift(1, fill_value=False)
+    # Fase 4: onset = acima hoje, não-acima ontem, E a linha de sinal era VÁLIDA
+    # ontem (o não-acima de ontem foi observado, não um NaN do warm-up — evita o
+    # onset fantasma no 1º dia válido; a linha de sinal, mais tardia que a linha
+    # MACD, domina o warm-up do estado).
+    onset = state & ~state.shift(1, fill_value=False) & signal_line.notna().shift(1, fill_value=False)
     # Fase 4: grava o onset como Int8.
     df[signal_col(fast, slow, sig)] = onset.astype("Int8")
     # Fase 5: persistência opcional (onset + k dias mantendo o estado, one-shot na confirmação).
     if persist:
         # Fase 5: streak = nº de dias consecutivos com o MESMO valor de state, terminando em t.
         streak = state.groupby((state != state.shift()).cumsum()).cumcount() + 1
-        # Fase 5: acende só quando state=1 e a sequência tem exatamente k+1 dias (sem vazamento).
-        df[signal_col(fast, slow, sig, persist)] = (state & (streak == persist + 1)).astype("Int8")
+        # Fase 5: persist acende só se state=1, a sequência tem exatamente k+1 dias E a
+        # corrida começou com um onset GENUÍNO k dias atrás (âncora; mata o persist
+        # fantasma do warm-up).
+        df[signal_col(fast, slow, sig, persist)] = (state & (streak == persist + 1) & onset.shift(persist, fill_value=False)).astype("Int8")
     # Saída: df enriquecido.
     return df

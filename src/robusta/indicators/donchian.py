@@ -44,8 +44,9 @@ def add_columns(df: pd.DataFrame, N: int, persist: int = 0) -> pd.DataFrame:
       Entrada: df com High e Close; janela N do canal e persist (0 = desligada).
       Fase 1: máxima móvel do High em N dias, deslocada 1 dia (min_periods=N) em donchian_hh{N}.
       Fase 2: estado (Close > teto anterior) em *_state.
-      Fase 3: onset (transição 0→1) em *_signal.
-      Fase 4: se persist>0, dummy de persistência (onset + k dias no estado) em *_persist{k}.
+      Fase 3: onset (transição 0→1, exigindo o teto válido ontem — evita o onset
+        fantasma no 1º dia útil do warm-up) em *_signal.
+      Fase 4: se persist>0, dummy de persistência (onset GENUÍNO + k dias no estado) em *_persist{k}.
       Saída: df-fundação com as colunas anexadas (3 fixas; +1 se persist>0).
     """
     # Fase 1: teto do canal = máxima dos N dias anteriores (shift(1) exclui o dia atual).
@@ -56,15 +57,19 @@ def add_columns(df: pd.DataFrame, N: int, persist: int = 0) -> pd.DataFrame:
     state = df["Close"] > hh
     # Fase 2: grava o estado como Int8.
     df[f"donchian_N{N}_state"] = state.astype("Int8")
-    # Fase 3: onset = transição 0→1 do estado.
-    onset = state & ~state.shift(1, fill_value=False)
+    # Fase 3: onset = acima hoje, não-acima ontem, E o teto era VÁLIDO ontem (o
+    # não-acima de ontem foi observado, não um NaN do warm-up — evita o onset
+    # fantasma no 1º dia válido).
+    onset = state & ~state.shift(1, fill_value=False) & hh.notna().shift(1, fill_value=False)
     # Fase 3: grava o onset como Int8.
     df[signal_col(N)] = onset.astype("Int8")
     # Fase 4: persistência opcional (onset + k dias mantendo o estado, one-shot na confirmação).
     if persist:
         # Fase 4: streak = nº de dias consecutivos com o MESMO valor de state, terminando em t.
         streak = state.groupby((state != state.shift()).cumsum()).cumcount() + 1
-        # Fase 4: acende só quando state=1 e a sequência tem exatamente k+1 dias (sem vazamento).
-        df[signal_col(N, persist)] = (state & (streak == persist + 1)).astype("Int8")
+        # Fase 4: persist acende só se state=1, a sequência tem exatamente k+1 dias E a
+        # corrida começou com um onset GENUÍNO k dias atrás (âncora; mata o persist
+        # fantasma do warm-up).
+        df[signal_col(N, persist)] = (state & (streak == persist + 1) & onset.shift(persist, fill_value=False)).astype("Int8")
     # Saída: df enriquecido.
     return df
