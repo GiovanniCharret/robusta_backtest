@@ -47,7 +47,9 @@ Inclui as lacunas ALTA/MÉDIA de `TESTES.md` dobradas nos testes de cada fase.
 
 **Parâmetros ajustáveis:** todos centralizados em `src/robusta/config.py` (ticker, period, janelas da mma, tolerâncias, horizontes, min_events, pasta de saída). Edite lá — nenhum outro código precisa mudar.
 
-**Rodar o pipeline real:** `PYTHONPATH=src uv run python -m robusta.run_mma` (PowerShell: `$env:PYTHONPATH="src"; uv run python -m robusta.run_mma`).
+**Rodar o pipeline real:** `$env:PYTHONPATH="src"; uv run python -m robusta.run_all` (PowerShell).
+O entrypoint histórico `run_mma.py` foi **removido em 2026-07-11** — o par `analysis_mma`/`summary_mma`
+sai do `run_all` (que roda os 10 indicadores e o `summary_ALL`).
 
 ## Fase 2 — Persistência do rompimento (`persist_k`)
 

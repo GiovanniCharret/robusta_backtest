@@ -1,22 +1,24 @@
 # O módulo de configuração centralizada sob teste.
 from robusta import config
-# A orquestração pura, para provar que os grids do config alimentam o pipeline.
-from robusta.run_mma import build_summary
+# A orquestração pura genérica, para provar que os grids do config alimentam o pipeline.
+from robusta.runner import build_summary
+# O mma serve de indicador-cobaia (o grid dele vem de PARAM_GRIDS, como no run_all).
+from robusta.indicators import mma
 
 
 # Teste: o config expõe todos os parâmetros, bem formados.
 def test_config_is_wellformed():
     """
     Por quê: o config é o painel de ajustes manual; se um parâmetro sumir ou vier
-    com tipo errado, o run_mma quebra. Este teste trava o contrato do config.
+    com tipo errado, o run_all quebra. Este teste trava o contrato do config.
 
     Lógica: Entrada (config) → Fase 1 dados → Fase 2 grids → Fase 3 modelagem/saída → Saída.
     """
     # Fase 1: ticker e period são strings não-vazias.
     assert isinstance(config.TICKER, str) and config.TICKER
     assert isinstance(config.PERIOD, str) and config.PERIOD
-    # Fase 2: os quatro grids são listas não-vazias.
-    for grid in (config.MMA_WINDOWS, config.TOLERANCES, config.HORIZONS, config.PERSISTENCES):
+    # Fase 2: os dois grids compartilhados são listas não-vazias.
+    for grid in (config.HORIZONS, config.PERSISTENCES):
         assert isinstance(grid, list) and len(grid) >= 1
     # Fase 2: persistências incluem 0 (o rompimento puro) — comportamento base preservado.
     assert 0 in config.PERSISTENCES
@@ -25,28 +27,29 @@ def test_config_is_wellformed():
     assert isinstance(config.OUTPUT_DIR, str) and config.OUTPUT_DIR
 
 
-# Teste: os grids do config geram o nº esperado de modelos (integração, sem rede).
+# Teste: o grid do config gera o nº esperado de modelos (integração, sem rede).
 def test_config_grids_drive_build_summary(synthetic_prices):
     """
-    Por quê: garantir que os grids do config são válidos e atravessam o pipeline —
-    nº de linhas = |windows|×|tols|×|persists|×|horizons|×2 famílias.
+    Por quê: garantir que o grid do config é válido e atravessa o pipeline genérico
+    (o mesmo caminho do run_all) — nº de linhas = produto do PARAM_GRIDS["mma"]
+    × |horizons| × 2 famílias.
 
-    Lógica: Entrada (config + preços sintéticos) → Fase 1 build_summary → Fase 2 contagem.
+    Lógica: Entrada (config + preços sintéticos) → Fase 1 build_summary genérico
+    com o grid do mma → Fase 2 contagem.
     """
-    # Fase 1: roda o pipeline com EXATAMENTE os grids do config.
+    # Fase 1: o grid do mma vem EXATAMENTE do painel (como o run_all o consome).
+    grid = config.PARAM_GRIDS["mma"]
+    # Fase 1: roda o pipeline genérico injetando o módulo mma.
     _, summary = build_summary(
-        synthetic_prices,
-        windows=config.MMA_WINDOWS,
-        tols=config.TOLERANCES,
-        horizons=config.HORIZONS,
-        persists=config.PERSISTENCES,
-        min_events=config.MIN_EVENTS,
+        synthetic_prices, mma, grid, config.HORIZONS, min_events=config.MIN_EVENTS
     )
-    # Fase 2/Saída: contagem bate com o produto do grid × 2 famílias.
-    esperado = (
-        len(config.MMA_WINDOWS) * len(config.TOLERANCES)
-        * len(config.PERSISTENCES) * len(config.HORIZONS) * 2
-    )
+    # Fase 2: o esperado parte de 2 famílias × nº de horizontes.
+    esperado = 2 * len(config.HORIZONS)
+    # Fase 2: cada dimensão do grid multiplica o nº de combinações.
+    for valores in grid.values():
+        # Multiplica pela cardinalidade da dimensão.
+        esperado *= len(valores)
+    # Saída: contagem bate com o produto do grid × horizontes × 2 famílias.
     assert len(summary) == esperado
 
 

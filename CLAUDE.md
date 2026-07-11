@@ -68,7 +68,8 @@ The whole system is one **linear pipeline that enriches a single "df-fundação"
 from yfinance): every step *adds columns* to that same DataFrame rather than passing new objects
 around, so any day can be reviewed row-by-row (a deliberate carry-over from the legacy notebook).
 
-Data flow (`run_mma.py:main` orchestrates it):
+Data flow (`run_all.py:main` orchestrates it — downloads prices once, iterates the
+`config.INDICATORS` roster):
 
 1. **`data.py`** — `load_prices(ticker, period)` is the *only* module that touches the network
    (yfinance, relative window like `"10y"`). It normalizes to ordered OHLCV. Not unit-tested (network);
@@ -76,10 +77,14 @@ Data flow (`run_mma.py:main` orchestrates it):
 2. **`target.py`** — `add_labels(df, horizons)` appends the dependent variables per horizon `h`:
    `ret_{h}d` (continuous forward return `Close[t+h]/Close[t]-1`) and `y_{h}d` (its 0/1 sign).
 3. **`indicators/`** — each indicator is a **plug-in module** matching the `base.py` `Indicator`
-   protocol: `NAME`, `signal_col(**params) -> str`, `add_columns(df, **params) -> df`. Only `mma.py`
-   exists so far. `add_columns` appends the MA value, the `above` state, the `_break` dummy (the
-   independent variable), and optionally a `persistK` dummy (broke out *and* stayed above `k` more
-   days, stamped one-shot on the confirmation day — no look-ahead leakage).
+   protocol: `NAME`, `signal_col(**params) -> str`, `add_columns(df, **params) -> df`. Ten modules
+   exist (mma, mme, obv, vwap, alto_volume, exaustao_atr, rsi, macd, donchian, bollinger), each an
+   isolated copy of the same pattern (duplication over shared helpers is a deliberate design
+   decision). `add_columns` appends the value column(s), the `*_state` (bullish regime, Int8), the
+   `*_signal` onset dummy (the independent variable; requires a *valid* reference on t−1 — no
+   phantom warm-up onsets), optionally `*_persist{k}` (onset + k more days in-state, one-shot,
+   anchored on a genuine onset) and — event indicators only — `*_confirm{k}` (price held ≥ the
+   event-day close for k days). No look-ahead leakage anywhere.
 4. **`sweep.py`** — `run_sweep(df, indicator_module, param_grid, horizons)` is **indicator-agnostic**:
    it expands the grid, calls `add_columns`/`signal_col` via the injected module, and per combo ×
    horizon fits **two model families**, emitting **two summary rows** each.
@@ -88,14 +93,20 @@ Data flow (`run_mma.py:main` orchestrates it):
    schema* so the sweep treats every row alike; edge cases (too few events, perfect separation,
    numeric failure) return that schema with a `status` string instead of raising. `contingency_metrics`
    adds fail-safe 2×2 association measures (`odds_ratio`, `lift`, `fisher_p`) — logit rows only, NaN on ols.
-6. **`run_mma.py`** — writes two `.xlsx` outputs to `OUTPUT_DIR`: `analysis_mma.xlsx` (the enriched
-   df-fundação, one row/day) and `summary_mma.xlsx` (one row/model; a second `dicionário` sheet
-   documents every column).
+6. **`runner.py`** — the generic per-indicator orchestration: `build_summary(prices, indicator,
+   param_grid, horizons)` (pure, no I/O) and `write_outputs(analysis, summary, name)` which writes
+   `analysis_{name}.xlsx` + `summary_{name}.xlsx` (second `dicionário` sheet documents every column).
+7. **`run_all.py`** — the entrypoint: downloads once, runs every indicator in `config.INDICATORS`
+   with its `config.PARAM_GRIDS[name]` grid, writes the per-indicator pairs and the consolidated
+   `summary_ALL.xlsx` (sheet `ranking`, sorted per family by lift (logit) / coef (ols), NaN last;
+   plus `dicionário`). Read it with the guards: filter `n_eventos` and `fisher_p` before trusting
+   any lift.
 
-**All tunable knobs live in `config.py`** (ticker, period, MA windows, tolerances, persistences,
-horizons, min_events, output dir) — the grid is their Cartesian product. Change parameters there;
-no other file should need editing. Adding an indicator = writing one new module under `indicators/`
-that satisfies the protocol — `sweep.py` does not change.
+**All tunable knobs live in `config.py`** (ticker, period, `INDICATORS` roster, `PARAM_GRIDS` per
+indicator, `PERSISTENCES`, horizons, min_events, output dir). Change parameters there; no other
+file should need editing. Adding an indicator = writing one new module under `indicators/` that
+satisfies the protocol + one `PARAM_GRIDS` entry — `sweep.py` does not change. (The old standalone
+`run_mma.py` wrapper was removed on 2026-07-11; the mma pair now comes from `run_all`.)
 
 ## Python environment
 
@@ -118,14 +129,14 @@ uv pip freeze > requirements.txt
 `pyproject.toml` sets `pythonpath = ["src"]` and `testpaths = ["tests"]`, so pytest needs no flags.
 
 ```powershell
-uv run pytest                          # full suite (38 tests, no network — uses synthetic fixtures)
+uv run pytest                          # full suite (~99 tests, no network — uses synthetic fixtures)
 uv run pytest tests/test_mma.py        # one file
 uv run pytest tests/test_mma.py::test_break_is_event_not_state      # one test
 uv run pytest -k persist               # tests matching an expression
 
-# Run the real pipeline (downloads prices via yfinance, writes output/*.xlsx).
-# Needs src on PYTHONPATH because run_mma.py is invoked as a module:
-$env:PYTHONPATH="src"; uv run python -m robusta.run_mma
+# Run the real pipeline (downloads prices via yfinance once, sweeps all 10 indicators,
+# writes output/*.xlsx incl. summary_ALL.xlsx). Needs src on PYTHONPATH:
+$env:PYTHONPATH="src"; uv run python -m robusta.run_all
 ```
 
 The test suite is offline by design (network is confined to `data.py`, which is not unit-tested).
