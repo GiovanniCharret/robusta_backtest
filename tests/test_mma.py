@@ -60,14 +60,14 @@ def test_break_is_event_not_state():
     df = pd.DataFrame({"Close": [10, 9, 8, 9, 12, 14, 16, 18]})
     # Fase 1: janela 3, sem tolerância.
     out = mma.add_columns(df.copy(), window=3, tol=0.0)
-    # Fase 2: o estado above fica ligado em vários dias (mais que o break).
-    above = out[f"mma_w3_t0.0_above"]
-    brk = out[mma.signal_col(3, 0.0)]
-    assert above.sum() > brk.sum()
-    # Fase 3: cada break=1 corresponde a uma transição (above hoje, não-above ontem).
-    transitions = ((above == 1) & (above.shift(1, fill_value=0) == 0)).sum()
-    # Saída: o nº de breaks é exatamente o nº de transições 0→1.
-    assert int(brk.sum()) == int(transitions)
+    # Fase 2: o estado state fica ligado em vários dias (mais que o signal).
+    state = out[f"mma_w3_t0.0_state"]
+    sig = out[mma.signal_col(3, 0.0)]
+    assert state.sum() > sig.sum()
+    # Fase 3: cada signal=1 corresponde a uma transição (state hoje, não-state ontem).
+    transitions = ((state == 1) & (state.shift(1, fill_value=0) == 0)).sum()
+    # Saída: o nº de signals é exatamente o nº de transições 0→1.
+    assert int(sig.sum()) == int(transitions)
 
 
 # Lacuna TESTES.md #12 (ALTA): não acende em dia sem cruzamento.

@@ -26,7 +26,7 @@ def signal_col(window: int, tol: float = 0.0, persist: int = 0) -> str:
     rompimento puro (persist=0) OU uma persistência de k dias (persist=k>0).
 
     Lógica: Entrada (janela, tolerância, persist) → Saída (nome canônico):
-      persist=0 → `mma_w{window}_t{tol}_break` (retrocompatível);
+      persist=0 → `mma_w{window}_t{tol}_signal` (retrocompatível);
       persist=k → `mma_w{window}_t{tol}_persist{k}`.
     """
     # persist>0: nome dedicado da dummy de persistência de k dias.
@@ -34,7 +34,7 @@ def signal_col(window: int, tol: float = 0.0, persist: int = 0) -> str:
         # Saída: nome da persistência para (janela, tolerância, k).
         return f"mma_w{window}_t{tol}_persist{persist}"
     # Saída: nome da dummy de rompimento para (janela, tolerância).
-    return f"mma_w{window}_t{tol}_break"
+    return f"mma_w{window}_t{tol}_signal"
 
 
 # Acrescenta ao df-fundação o valor da média, o estado, o rompimento e (opcional) a persistência.
@@ -58,8 +58,8 @@ def add_columns(df: pd.DataFrame, window: int, tol: float = 0.0, persist: int = 
     df[vcol] = df["Close"].rolling(window).mean()
     # Fase 2: estado booleano "Close acima da banda de tolerância".
     above = df["Close"] > df[vcol] * (1 + tol)
-    # Fase 2: grava o estado como Int8 (coluna *_above) para revisão.
-    df[f"mma_w{window}_t{tol}_above"] = above.astype("Int8")
+    # Fase 2: grava o ESTADO como Int8 (coluna *_state) para revisão.
+    df[f"mma_w{window}_t{tol}_state"] = above.astype("Int8")
     # Fase 3: cruzamento = acima hoje E não-acima ontem (shift preenche o 1º dia como False).
     cross = above & ~above.shift(1, fill_value=False)
     # Fase 3: grava a dummy de evento (coluna *_break) como Int8.
